@@ -1,0 +1,160 @@
+%#!./run.bash test.tex
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesExplPackage {spotxcolor} {2026-03-12} {0.14} {Modern Spot Color Support for xcolor}
+
+%%
+%% Copyright (c) 2026 Munehiro Yamamoto <munepixyz@gmail.com>
+%%
+%% This package is licensed under the terms of the MIT License.
+%%
+
+\RequirePackage{xcolor}
+\RequirePackage{iftex}
+
+% --- Variable Declarations ---
+\prop_new:N \g_spotxcolor_db_prop
+\tl_new:N \l_spotxcolor_pdfname_tl
+\tl_const:Nx \c_spotxcolor_hash_str { \string # }
+\tl_new:N \g_spotxcolor_resource_tl
+
+% --- Database Registration ---
+\cs_new_protected:Npn \spotxcolor_register_db:nnn #1#2#3
+  {
+    \prop_gput:Nnn \g_spotxcolor_db_prop {#1} { {#2} {#3} }
+  }
+
+% --- PDF Object Generation ---
+\cs_new_protected:Npn \spotxcolor_create_pdf_obj:nnn #1#2#3
+  {
+    % Replace spaces in PDF name (#2) with #20
+    \tl_set:Nn \l_spotxcolor_pdfname_tl { #2 }
+    \tl_replace_all:Nnx \l_spotxcolor_pdfname_tl { ~ } { \c_spotxcolor_hash_str 20 }
+
+    \legacy_if:nTF { pdf }
+      {
+        \sys_if_engine_pdftex:T
+          {
+            \immediate \pdfobj {<</C0[0~0~0~0]/FunctionType~2/C1[#3]/Domain[0~1]/N~1>>}
+            \tl_set:Nx \l_tmpa_tl { \the\pdflastobj }
+            \pdfrefobj \l_tmpa_tl
+
+            \immediate \pdfobj { [/Separation~/\l_spotxcolor_pdfname_tl~/DeviceCMYK~\l_tmpa_tl\space 0~R] }
+            \tl_set:Nx \l_tmpb_tl { \the\pdflastobj }
+            \pdfrefobj \l_tmpb_tl
+
+            \tl_gput_right:Nx \g_spotxcolor_resource_tl { /#1 \space \l_tmpb_tl \space 0~R \space }
+          }
+        \sys_if_engine_luatex:T
+          {
+            \immediate \pdfextension obj {<</C0[0~0~0~0]/FunctionType~2/C1[#3]/Domain[0~1]/N~1>>}
+            \tl_set:Nx \l_tmpa_tl { \pdffeedback lastobj }
+            \pdfextension refobj \l_tmpa_tl
+
+            \immediate \pdfextension obj { [/Separation~/\l_spotxcolor_pdfname_tl~/DeviceCMYK~\l_tmpa_tl\space 0~R] }
+            \tl_set:Nx \l_tmpb_tl { \pdffeedback lastobj }
+            \pdfextension refobj \l_tmpb_tl
+
+            \tl_gput_right:Nx \g_spotxcolor_resource_tl { /#1 \space \l_tmpb_tl \space 0~R \space }
+          }
+      }
+      {
+        % For dvipdfmx, XeLaTeX
+        \special { pdf:obj~@spot_func_#1~<</C0[0~0~0~0]/FunctionType~2/C1[#3]/Domain[0~1]/N~1>> }
+        \special { pdf:obj~@spot_space_#1~[/Separation~/\l_spotxcolor_pdfname_tl~/DeviceCMYK~@spot_func_#1] }
+        \special { pdf:put~@resources~<<~/ColorSpace~<<~/#1~@spot_space_#1~>>~>> }
+      }
+  }
+
+\cs_generate_variant:Nn \spotxcolor_create_pdf_obj:nnn { nnV }
+
+% --- Native Registration for xcolor ---
+\cs_new_protected:Npn \spotxcolor_bind_xcolor:nnn #1#2#3
+  {
+    \definecolor {#1} {cmyk} {#3}
+    \legacy_if:nTF { pdf }
+      {
+        % For pdfTeX / LuaTeX, pass the "raw spot color operator" as the 2nd argument to \xcolor@ to fully support \textcolor.
+        \cs_set:cpn { color@#1 } { \xcolor@ {}{/#1~cs~/#1~CS~1~sc~1~SC}{cmyk}{#3} }
+      }
+      {
+        % DO NOTHING MORE for dvipdfmx!
+        % Breaking xcolor's parser by appending \special causes fallback to black.
+        % In dvipdfmx, \textcolor will safely fallback to CMYK representation.
+      }
+  }
+
+% --- Core Definition Command ---
+\cs_new_protected:Npn \spotxcolor_define_spotcolor:nnn #1#2#3
+  {
+    \spotxcolor_register_db:nnn {#1} {#2} {#3}
+    \tl_set:Nn \l_tmpa_tl { #3 }
+    \tl_replace_all:Nnn \l_tmpa_tl { , } { ~ }
+    \spotxcolor_create_pdf_obj:nnV {#1} {#2} \l_tmpa_tl
+    \spotxcolor_bind_xcolor:nnn {#1} {#2} {#3}
+  }
+
+\cs_generate_variant:Nn \spotxcolor_define_spotcolor:nnn { nnV }
+
+% --- User Interface ---
+\NewDocumentCommand{\definespotcolor}{ m m m }
+  {
+    \spotxcolor_define_spotcolor:nnn {#1} {#2} {#3}
+  }
+
+% --- Manual Command to Ensure True Spot Color Output in dvipdfmx ---
+\NewDocumentCommand{\SpotColor}{ m m }
+  {
+    \legacy_if:nTF { pdf }
+      {
+        \sys_if_engine_pdftex:T { \pdfliteral { /#1~cs~/#1~CS~#2~sc~#2~SC } }
+        \sys_if_engine_luatex:T { \pdfextension literal { /#1~cs~/#1~CS~#2~sc~#2~SC } }
+      }
+      {
+        \special { pdf:code~/#1~cs~/#1~CS~#2~sc~#2~SC }
+      }
+  }
+
+% --- Safe Bulk Expansion and Registration of Page Resources ---
+\AtBeginDocument
+  {
+    \legacy_if:nTF { pdf }
+      {
+        \tl_if_empty:NF \g_spotxcolor_resource_tl
+          {
+            \sys_if_engine_pdftex:T
+              {
+                \edef \spotxcolor_temp_tl { \the\pdfpageresources \space /ColorSpace << \g_spotxcolor_resource_tl >> }
+                \pdfpageresources = \exp_after:wN { \spotxcolor_temp_tl }
+              }
+            \sys_if_engine_luatex:T
+              {
+                \edef \spotxcolor_temp_tl { \the\pdfvariable~pageresources \space /ColorSpace << \g_spotxcolor_resource_tl >> }
+                \pdfvariable~pageresources = \exp_after:wN { \spotxcolor_temp_tl }
+              }
+          }
+      }
+      {}
+  }
+
+% =======================================================
+% --- Backward Compatibility Wrappers for spotcolor package ---
+% =======================================================
+\NewDocumentCommand{\NewSpotColorSpace}{ m } { }
+\NewDocumentCommand{\SetPageColorSpace}{ m } { }
+
+\tl_const:Nx \SpotSpace { \c_spotxcolor_hash_str 20 }
+
+\NewDocumentCommand{\AddSpotColor}{ m m m m }
+  {
+    \tl_set:Nn \l_tmpa_tl { #4 }
+    \tl_replace_all:Nnn \l_tmpa_tl { ~ } { , }
+    \spotxcolor_define_spotcolor:nnV {#2} {#3} \l_tmpa_tl
+  }
+
+% =======================================================
+% --- Backward Compatibility Wrappers for colorspace package ---
+% =======================================================
+\NewDocumentCommand{\pagecolorspace}{ m } { }
+\NewDocumentCommand{\resetpagecolorspace}{ } { }
+
+\ExplSyntaxOff

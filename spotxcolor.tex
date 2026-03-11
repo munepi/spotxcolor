@@ -1,0 +1,93 @@
+%#!lualatex spotxcolor
+\documentclass[luatex]{article}
+\usepackage{shortvrb}\MakeShortVerb{\|}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{spotxcolor}
+
+\definespotcolor{DIC161}{DIC 161s*}{0, 0.64, 1, 0}
+
+\title{\textsf{spotxcolor} Package}
+\author{Munehiro Yamamoto}
+\date{2026/03/12 v0.14}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This package provides modern and robust spot color (e.g., DIC, PANTONE) support
+for the \textsf{xcolor} package across all major \TeX\ engines.
+\end{abstract}
+
+\section{Motivation}
+While the legacy \textsf{spotcolor} package has been used for years,
+it suffers from structural PDF compatibility issues with modern \textsf{expl3} and \textsf{xcolor} updates.
+The \textsf{colorspace} package is an excellent modern alternative,
+but it lacks full support for the \texttt{dvipdfmx} driver.
+
+To address this, the \textsf{spotxcolor} package natively hooks into the \textsf{xcolor} package to provide:
+\begin{itemize}
+\item Perfect PDF structure generation for \texttt{pdftex} and \texttt{luatex}.
+\item Safe CMYK fallback for \texttt{dvipdfmx} and \texttt{xetex} when using the \verb|\textcolor| macro.
+\item Manual spot color injection commands for exact spot color output in \texttt{dvipdfmx}.
+\item Complete backward compatibility with old \textsf{spotcolor} and \textsf{colorspace} user commands.
+\end{itemize}
+
+\section{Loading the \textsf{spotxcolor} Package}
+
+Load the \textsf{spotxcolor} package in your preamble. It automatically detects your engine via the \textsf{iftex} package.
+\begin{quote}
+\begin{verbatim}
+\usepackage{spotxcolor}
+\end{verbatim}
+\end{quote}
+
+\section{Usage}
+
+\subsection{Defining and Using Spot Colors}
+Use \verb|\definespotcolor| to register a spot color. The arguments are: \LaTeX\ name, PDF name, and CMYK values.
+Once registered, you can use standard \textsf{xcolor} commands:
+
+\begin{quote}
+\begin{verbatim}
+\definespotcolor{DIC161}{DIC 161s*}{0, 0.64, 1, 0}
+
+\textcolor{DIC161}{This text is DIC 161.}
+\end{verbatim}
+\end{quote}
+
+\subsection{Dvipdfmx Explicit Spot Colors}
+Because the \texttt{dvipdfmx} backend strictly falls back to a CMYK representation when using standard \verb|\textcolor|, you can force true spot color output (creating an independent separation plate in the PDF) using the \verb|\SpotColor| command:
+
+\begin{quote}
+\begin{verbatim}
+\SpotColor{DIC161}{1.0}
+This text is 100\% DIC 161.
+
+\SpotColor{DIC161}{0.5}
+This text is 50\% DIC 161.
+\end{verbatim}
+\end{quote}
+
+\subsection{Note for \texttt{(u)p\LaTeX} Users}
+If you compile your document with \texttt{platex} or \texttt{uplatex} and generate a PDF via \texttt{dvipdfmx}, you \textbf{must} specify the \texttt{dvipdfmx} driver option globally in your document class:
+
+\begin{quote}
+\begin{verbatim}
+\documentclass[dvipdfmx]{article}
+\end{verbatim}
+\end{quote}
+
+Without this option, modern \textsf{expl3} and \textsf{xcolor} will default to the \texttt{dvips} driver, and the PDF objects for spot colors will not be generated correctly.
+
+\subsection{Backward Compatibility}
+You can safely reuse your legacy code and dictionaries written for the \textsf{spotcolor} package. They are automatically mapped to modern \textsf{spotxcolor} implementations:
+
+\begin{quote}
+\begin{verbatim}
+\NewSpotColorSpace{DIC}
+\AddSpotColor{DIC}{DIC161}{DIC\SpotSpace 161s*}{0 0.64 1 0}
+\SetPageColorSpace{DIC}
+\end{verbatim}
+\end{quote}
+
+\end{document}
