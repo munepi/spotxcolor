@@ -1,6 +1,6 @@
 %#!./run.bash test.tex
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage {spotxcolor} {2026-03-12} {0.14} {Modern Spot Color Support for xcolor}
+\ProvidesExplPackage {spotxcolor} {2026-03-13} {0.15} {Modern Spot Color Support for xcolor}
 
 %%
 %% Copyright (c) 2026 Munehiro Yamamoto <munepixyz@gmail.com>
@@ -61,7 +61,20 @@
         % For dvipdfmx, XeLaTeX
         \special { pdf:obj~@spot_func_#1~<</C0[0~0~0~0]/FunctionType~2/C1[#3]/Domain[0~1]/N~1>> }
         \special { pdf:obj~@spot_space_#1~[/Separation~/\l_spotxcolor_pdfname_tl~/DeviceCMYK~@spot_func_#1] }
-        \special { pdf:put~@resources~<<~/ColorSpace~<<~/#1~@spot_space_#1~>>~>> }
+
+        % Avoid collision with pgfcolorspaces.
+        % Instead of putting it directly into @resources << /ColorSpace ... >>,
+        % we use a generic pdf:put command that dvipdfmx handles more gracefully
+        % for merging dictionaries.
+        \cs_if_exist:NTF \pgfutil@addpdfresource@colorspaces
+          {
+            % If TikZ/PGF is loaded, inject into its dictionary
+            \pgfutil@addpdfresource@colorspaces { /#1~@spot_space_#1 }
+          }
+          {
+            % If PGF is NOT loaded, use the standard approach
+            \special { pdf:put~@resources~<<~/ColorSpace~<<~/#1~@spot_space_#1~>>~>> }
+          }
       }
   }
 
@@ -133,7 +146,14 @@
               }
           }
       }
-      {}
+      {
+% \makeatletter
+% \gdef\pgfsys@color@spotcolor@stroke#1#2{\special{pdf:literal /#1 CS #2 SC}}
+% \gdef\pgfsys@color@spotcolor@fill#1#2{\special{pdf:literal /#1 cs #2 sc}}
+% \gdef\pgfsys@color@spotcolor#1#2{\pgfsys@color@spotcolor@stroke{#1}{#2}
+%                                  \pgfsys@color@spotcolor@fill{#1}{#2}}
+% \makeatother
+      }
   }
 
 % =======================================================
