@@ -1,6 +1,6 @@
 %#!./run.bash test.tex
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage {spotxcolor} {2026-03-13} {0.16} {Modern Spot Color Support for xcolor}
+\ProvidesExplPackage {spotxcolor} {2026-03-13} {0.18} {Modern Spot Color Support for xcolor}
 
 %%
 %% Copyright (c) 2026 Munehiro Yamamoto <munepixyz@gmail.com>
@@ -191,15 +191,20 @@
 % --- PGF Pattern CMYK Patch (v0.17) ---
 % Force PGF/TikZ uncolored patterns to use CMYK instead of hardcoded RGB.
 % This ensures safe CMYK fallback for spot colors in pattern fills.
+% Both legacy `patterns` and modern `patterns.meta` are supported.
 % =======================================================
+\makeatletter
 \AtBeginDocument{
   \@ifpackageloaded{pgfcore}{%
+    % 1. Register CMYK Pattern Colorspace
     \pgfutil@addpdfresource@colorspaces{ /pgfpcmyk [/Pattern /DeviceCMYK] }%
-    % Override driver command to use 5 parameters (PatternName, C, M, Y, K)
+
+    % 2. Override driver command to expect 5 parameters (PatternName, C, M, Y, K)
     \def\pgfsys@setpatternuncolored#1#2#3#4#5{%
       \pgfsysprotocol@literal{/pgfpcmyk cs #2 #3 #4 #5 /pgfpat#1\space scn}%
     }%
-    % Override PGF core to convert pattern color to CMYK
+
+    % 3. Patch for legacy `patterns` library (pgfcorepatterns)
     \def\pgf@set@fillpattern#1#2{%
       \pgfutil@ifundefined{pgf@pattern@name@#1}{%
         \pgferror{Undefined pattern `#1'}%
@@ -212,7 +217,7 @@
           \pgfutil@colorlet{pgf@tempcolor}{#2}%
           \pgfutil@ifundefined{applycolormixins}{}{\applycolormixins{pgf@tempcolor}}%
           \pgfutil@extractcolorspec{pgf@tempcolor}{\pgf@tempcolor}%
-          \expandafter\pgfutil@convertcolorspec\pgf@tempcolor{cmyk}{\pgf@cmykcolor}%
+          \expandafter\pgfutil@convertcolorspec\pgf@tempcolor{cmyk}{\pgf@cmykcolor}% <-- convert to CMYK
           \expandafter\pgf@set@fill@patternuncolored\pgf@cmykcolor\relax{#1}%
         }%
       }%
@@ -220,7 +225,20 @@
     \def\pgf@set@fill@patternuncolored#1,#2,#3,#4\relax#5{%
       \pgfsys@setpatternuncolored{\csname pgf@pattern@name@#5\endcsname}{#1}{#2}{#3}{#4}%
     }%
-  }{}%
+
+    % 4. Patch for modern `patterns.meta` library (pgflibrarypatterns.meta)
+    \def\pgf@pat@setpatternuncolored#1#2{%
+      \pgfutil@colorlet{pgf@tempcolor}{#2}%
+      \pgfutil@ifundefined{applycolormixins}{}{\applycolormixins{pgf@tempcolor}}%
+      \pgfutil@extractcolorspec{pgf@tempcolor}{\pgf@tempcolor}%
+      \expandafter\pgfutil@convertcolorspec\pgf@tempcolor{cmyk}{\pgf@cmykcolor}% <-- Force CMYK
+      \expandafter\pgf@pat@set@fill@patternuncolored\pgf@cmykcolor\relax{#1}%
+    }%
+    \def\pgf@pat@set@fill@patternuncolored#1,#2,#3,#4\relax#5{% <-- Expect 4 color components
+      \pgfsys@setpatternuncolored{#5}{#1}{#2}{#3}{#4}%
+    }%
+  }\relax
 }
+\makeatother
 
 \endinput
