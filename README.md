@@ -11,6 +11,8 @@ This package provides robust spot color (e.g., DIC, PANTONE) support for the `xc
  * A modern [TeX Live](https://www.tug.org/texlive/) environment (requires an up-to-date `expl3`/`l3kernel`)
  * `xcolor` and `iftex` packages
 
+<!-- Because we need `\tl_replace_all:Nnx` in `expl3`, spotxcolor v0.14 currently supports TeX Live 2023 frozen up to TeX Live 2026 current. -->
+
 ## Installation
 
 Copy `spotxcolor.sty` to your local TeX tree:
