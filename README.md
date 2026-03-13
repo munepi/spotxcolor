@@ -6,6 +6,17 @@ This package provides robust spot color (e.g., DIC, PANTONE) support for the `xc
 
  * **Supported major drivers:** `pdftex`, `luatex`, `dvipdfmx` (including `ptex`/`uptex`), `xetex`
 
+## Features
+
+- **Native `xcolor` Integration:** Use spot colors exactly like standard colors (`\textcolor{DIC161!50}{text}`, `\pagecolor{DIC161}`).
+- **Universal Engine Compatibility:** Fully supports `pdfLaTeX`, `LuaLaTeX`, `XeLaTeX`, and `(u)pLaTeX + dvipdfmx`.
+- **Advanced Graphics Support:** Works flawlessly with complex `TikZ` and `PGF` environments. The package patches PGF internally to ensure print safety, fully supporting:
+  - Fill and stroke separation.
+  - Uncolored patterns and modern `patterns.meta` (safely forced to CMYK instead of PGF's hardcoded RGB).
+  - Fadings (transparency masks) and shadings (gradients).
+  - Blend modes (e.g., multiply).
+- **Decorations:** Seamlessly integrates with `colortbl` (zebra-striped tables) and `tcolorbox` (frames, backgrounds, shadows).
+
 ## Requirements
 
  * A modern [TeX Live](https://www.tug.org/texlive/) environment (requires an up-to-date `expl3`/`l3kernel`)
@@ -25,17 +36,19 @@ Load the `spotxcolor` package. It will automatically load `xcolor` and detect yo
 ```latex
 \usepackage{spotxcolor}
 
+% Define DIC 161
 % \definespotcolor{<latex-name>}{<pdf-name>}{<cmyk-values>}
 \definespotcolor{DIC161}{DIC 161s*}{0, 0.64, 1, 0}
 
 \begin{document}
 \sffamily\bfseries
 % Native xcolor interface (CMYK fallback safely applied in dvipdfmx)
-\textcolor{DIC161}{This is DIC 161}
+\textcolor{DIC161}{100\% Spot Color}
+\textcolor{DIC161!50}{50\% Tinted Spot Color}
 
 % Explicit spot color interface (Force true spot color in dvipdfmx)
 \SpotColor{DIC161}{1.0}
-This is 100% DIC 161
+This is 100% DIC 161.
 \end{document}
 ```
 
@@ -47,7 +60,7 @@ You can easily reuse your existing code and color dictionaries written for the l
 
 ## License
 
-This package is licensed under the terms of the MIT License.
+This package is licensed under the conditions of the LaTeX Project Public License, either version 1.3c of this license or any later version.
 
 --------------------
 

@@ -9,28 +9,30 @@
 
 \title{\textsf{spotxcolor} Package}
 \author{Munehiro Yamamoto}
-\date{2026/03/12 v0.14}
+\date{2026/03/14 v1.0}
+
 \begin{document}
 \maketitle
 
 \begin{abstract}
-This package provides modern and robust spot color (e.g., DIC, PANTONE) support
-for the \textsf{xcolor} package across all major \TeX\ engines.
+This package provides robust spot color (e.g., DIC, PANTONE) support for the \textsf{xcolor} package across all major \TeX\ engines. It resolves structural PDF issues found in legacy packages and provides explicit fallback mechanisms for various drivers.
 \end{abstract}
 
-\section{Motivation}
-While the legacy \textsf{spotcolor} package has been used for years,
-it suffers from structural PDF compatibility issues with modern \textsf{expl3} and \textsf{xcolor} updates.
-The \textsf{colorspace} package is an excellent modern alternative,
-but it lacks full support for the \texttt{dvipdfmx} driver.
+\section{Motivation \& Features}
+While the legacy \textsf{spotcolor} package has been used for years, it suffers from structural PDF compatibility issues with modern \textsf{expl3} and \textsf{xcolor} updates. The \textsf{colorspace} package is an excellent modern alternative, but it lacks full support for the \texttt{dvipdfmx} driver.
 
-To address this, the \textsf{spotxcolor} package natively hooks into the \textsf{xcolor} package to provide:
+To address these gaps, the \textsf{spotxcolor} package natively hooks into the \textsf{xcolor} package to provide a universal, print-safe solution. Its core features include:
+
 \begin{itemize}
-\item Perfect PDF structure generation for \texttt{pdftex} and \texttt{luatex}.
-\item Safe CMYK fallback for \texttt{dvipdfmx} and \texttt{xetex} when using the \verb|\textcolor| macro.
-\item Manual spot color injection commands for exact spot color output in \texttt{dvipdfmx}.
-\item Complete backward compatibility with old \textsf{spotcolor} and \textsf{colorspace} user commands.
+\item \textbf{Native \textsf{xcolor} Integration:} Use spot colors exactly like standard colors (e.g., \verb|\textcolor|, \verb|\pagecolor|), generating perfect PDF structures for \texttt{pdftex} and \texttt{luatex}.
+\item \textbf{Universal Engine Support \& Safe Fallbacks:} Ensures safe CMYK fallback for \texttt{dvipdfmx} and \texttt{xetex} when using standard macros, while providing explicit injection commands (\verb|\SpotColor|) for true spot color output in \texttt{dvipdfmx}.
+\item \textbf{Advanced Graphics (\textsf{TikZ}/\textsf{PGF}) Support:} Internally patches \textsf{PGF} to ensure print safety. It fully supports fill/stroke separation, fadings, shadings, blend modes, and safely forces uncolored patterns (including \texttt{patterns.meta}) to CMYK instead of hardcoded RGB.
+\item \textbf{Seamless Decorations:} Works flawlessly with \textsf{colortbl} (zebra-striped tables) and \textsf{tcolorbox} (frames, backgrounds, shadows).
+\item \textbf{Complete Backward Compatibility:} Perfectly emulates user commands from both \textsf{spotcolor} and \textsf{colorspace} packages.
 \end{itemize}
+
+\section{Requirements}
+This package requires a modern \TeX\ Live environment (with an up-to-date \textsf{expl3}/\textsf{l3kernel}), alongside the \textsf{xcolor} and \textsf{iftex} packages.
 
 \section{Loading the \textsf{spotxcolor} Package}
 
