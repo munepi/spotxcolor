@@ -186,3 +186,41 @@
 \NewDocumentCommand{\resetpagecolorspace}{ } { }
 
 \ExplSyntaxOff
+
+% =======================================================
+% --- PGF Pattern CMYK Patch (v0.17) ---
+% Force PGF/TikZ uncolored patterns to use CMYK instead of hardcoded RGB.
+% This ensures safe CMYK fallback for spot colors in pattern fills.
+% =======================================================
+\AtBeginDocument{
+  \@ifpackageloaded{pgfcore}{%
+    \pgfutil@addpdfresource@colorspaces{ /pgfpcmyk [/Pattern /DeviceCMYK] }%
+    % Override driver command to use 5 parameters (PatternName, C, M, Y, K)
+    \def\pgfsys@setpatternuncolored#1#2#3#4#5{%
+      \pgfsysprotocol@literal{/pgfpcmyk cs #2 #3 #4 #5 /pgfpat#1\space scn}%
+    }%
+    % Override PGF core to convert pattern color to CMYK
+    \def\pgf@set@fillpattern#1#2{%
+      \pgfutil@ifundefined{pgf@pattern@name@#1}{%
+        \pgferror{Undefined pattern `#1'}%
+      }{%
+        \csname pgf@pattern@instantiate@#1\endcsname
+        \expandafter\global\expandafter\let\csname pgf@pattern@instantiate@#1\endcsname=\relax
+        \pgf@ifpatternisinherentlycolored{#1}{%
+          \pgfsys@setpatterncolored{\csname pgf@pattern@name@#1\endcsname}%
+        }{%
+          \pgfutil@colorlet{pgf@tempcolor}{#2}%
+          \pgfutil@ifundefined{applycolormixins}{}{\applycolormixins{pgf@tempcolor}}%
+          \pgfutil@extractcolorspec{pgf@tempcolor}{\pgf@tempcolor}%
+          \expandafter\pgfutil@convertcolorspec\pgf@tempcolor{cmyk}{\pgf@cmykcolor}%
+          \expandafter\pgf@set@fill@patternuncolored\pgf@cmykcolor\relax{#1}%
+        }%
+      }%
+    }%
+    \def\pgf@set@fill@patternuncolored#1,#2,#3,#4\relax#5{%
+      \pgfsys@setpatternuncolored{\csname pgf@pattern@name@#5\endcsname}{#1}{#2}{#3}{#4}%
+    }%
+  }{}%
+}
+
+\endinput
