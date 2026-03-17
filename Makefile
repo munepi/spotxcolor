@@ -26,7 +26,7 @@ spotxcolor.pdf: spotxcolor.tex
 .PHONY: clean
 clean: ## Clean this repository
 	rm -rf spotxcolor.zip spotxcolor
-	rm -f *.aux *.log *.out *.toc *.pdf
+	rm -f *.aux *.log *.out *.toc
 	rm -f *.qdf test-ptex2pdf* test-colorspace* test_version
 	find . -type f -name "*~" -delete
 
