@@ -19,7 +19,7 @@
 
 \title{\textsf{spotxcolor} Package}
 \author{Munehiro Yamamoto}
-\date{2026/03/16 v1.1}
+\date{2026/03/17 v1.4}
 
 \begin{document}
 \maketitle
@@ -38,8 +38,9 @@ Its core features include:
 \begin{itemize}
 \item \textbf{Native \textsf{xcolor} Integration:} Use spot colors exactly like standard colors (e.g., |\textcolor|, |\pagecolor|), generating perfect PDF structures for \texttt{pdftex} and \texttt{luatex}.
 \item \textbf{Universal Engine Support \& Safe Fallbacks:} Ensures safe CMYK fallback for \texttt{dvipdfmx} and \texttt{xetex} when using standard macros, while providing explicit injection commands (|\SpotColor|) for true spot color output in \texttt{dvipdfmx}.
-\item \textbf{Advanced Graphics (\textsf{TikZ}/\textsf{PGF}) Support:} Internally patches \textsf{PGF} to ensure print safety.
-It fully supports fill/stroke separation, fadings, shadings, blend modes, and safely forces uncolored patterns (including \texttt{patterns.meta}) to CMYK instead of hardcoded RGB.
+\item \textbf{Advanced Graphics (\textsf{TikZ}/\textsf{PGF}) Support:} Internally patches \textsf{PGF} driver macros and pattern primitives to emit true spot color PDF operators.
+It supports fill/stroke separation, fadings, blend modes, and uncolored patterns (\texttt{patterns} and \texttt{patterns.meta}).
+Spot color tints are auto-detected from CMYK values throughout the entire PGF rendering pipeline.
 \item \textbf{Seamless Decorations:} Works flawlessly with \textsf{colortbl} (zebra-striped tables) and \textsf{tcolorbox} (frames, backgrounds, shadows).
 \item \textbf{Complete Backward Compatibility:} Perfectly emulates user commands from both \textsf{spotcolor} and \textsf{colorspace} packages.
 \end{itemize}
@@ -73,8 +74,9 @@ Once registered, you can use standard \textsf{xcolor} commands:
 \end{quote}
 
 \subsection{Dvipdfmx Explicit Spot Colors}
-Because the \texttt{dvipdfmx} backend strictly falls back to a CMYK representation when using standard |\textcolor|, you can force true spot color output (creating an independent separation plate in the PDF) using the |\SpotColor|
-command:
+All standard macros (|\color|, |\textcolor|, |\pagecolor|) produce true spot color output on \texttt{dvipdfmx}/\texttt{xetex} as well, via automatic \verb|\special{pdf:code}| injection.
+
+The |\SpotColor| command remains available as a lightweight, low-level alternative for direct PDF literal injection:
 
 \begin{quote}
 \begin{verbatim}
@@ -220,5 +222,84 @@ Why?
 Because \textsf{spotxcolor} utilizes robust, modern techniques (like hooking into PGF's resource management API) to inject color spaces globally and safely.
 Attempting to manually manipulate the \texttt{/ColorSpace} dictionary on a per-page basis is dangerous in modern \LaTeX\ and can easily corrupt the PDF structure.
 By neutralizing these legacy commands, \textsf{spotxcolor} guarantees that older documents will compile perfectly and safely without any structural PDF errors.
+
+\section{Limitations}
+
+The \textsf{spotxcolor} package auto-detects spot colors by checking whether CMYK values in the PDF output are a \emph{proportional scalar multiple} of a registered spot color's base CMYK values.
+This approach covers the vast majority of practical use cases, but has inherent limitations in the following areas.
+% %TODO:% For a detailed technical explanation of the interception architecture and why these limitations exist, see the companion document \texttt{spotxcolor-technote.pdf}.
+
+\subsection{Non-Proportional Color Mixes}
+
+When a spot color is mixed with another color model using \textsf{xcolor}'s |!| operator, the resulting CMYK values may no longer be a simple scalar multiple of the base.
+In such cases, the output correctly falls back to CMYK representation.
+
+\begin{quote}
+\begin{verbatim}
+% Proportional tint — auto-detected as spot color (tint=0.5)
+\textcolor{DIC161s!50}{50% tint}
+% Base CMYK: (0, 0.64, 1, 0)
+% Computed:  (0, 0.32, 0.5, 0)  ← scalar multiple (×0.5) ✓
+
+% Non-proportional mix — falls back to CMYK
+\textcolor{DIC161s!80!black}{80% DIC161s mixed with black}
+% Computed:  (0, 0.512, 0.8, 0.2)  ← K≠0 breaks proportionality ✗
+
+% Another non-proportional mix
+\textcolor{DIC161s!50!DIC256s}{50% DIC161s mixed with DIC256s}
+% Computed:  (0.45, 0.32, 0.7, 0)  ← no single spot color match ✗
+\end{verbatim}
+\end{quote}
+
+True representation of such mixes would require \texttt{/DeviceN} color spaces (e.g., \texttt{[/DeviceN [/DIC\string~161s* /Black] ...]}\,), which is beyond the scope of this package.
+
+\subsection{Shading (Gradients)}
+
+PGF's |\shade| command generates Shading dictionary objects (PDF Type~2 and Type~3 shadings) with a hardcoded \texttt{/DeviceRGB} color space.
+The color values are resolved and frozen into RGB at the time the shading object is created, before any content stream operators are emitted.
+
+This contrasts with \emph{patterns} (hatching), where the color is specified by operators in the content stream (|/pgfpspot_DIC161s cs 0.6 /pgfpat21 scn|) and can be intercepted.
+For shadings, the content stream contains only |/Fm16 Do| (``paint this Form~XObject'')---no color information to intercept.
+
+\begin{quote}
+\begin{verbatim}
+% Both endpoints are converted to RGB inside the Shading object.
+% The PDF will contain:
+%   /ColorSpace /DeviceRGB
+%   /Function << /C0 [r g b] /C1 [r g b] ... >>
+\shade[left color=DIC161s, right color=DIC161s!10]
+  (0,0) rectangle (4, 1.5);
+\end{verbatim}
+\end{quote}
+
+Since spotxcolor's interception operates at the content stream operator level, it cannot modify these pre-built PDF objects.
+True spot color gradients would require generating Shading objects with \texttt{/ColorSpace [/Separation~...]} and tint-value function endpoints, which amounts to rewriting PGF's shading generation code entirely.
+% %TODO:% See the Technical Note (\texttt{spotxcolor-technote.pdf}, Section~X.Y) for a detailed structural comparison.
+
+\subsection{Summary}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{lll}
+\hline
+\textbf{Feature} & \textbf{Status} & \textbf{Notes} \\
+\hline
+|\color|, |\textcolor|     & \textcolor{DIC256s}{\textbf{Spot}} & All engines \\
+|\pagecolor|               & \textcolor{DIC256s}{\textbf{Spot}} & All engines \\
+|\SpotColor|               & \textcolor{DIC256s}{\textbf{Spot}} & Direct PDF literal \\
+TikZ fill/stroke           & \textcolor{DIC256s}{\textbf{Spot}} & Via PGF driver patch \\
+Low-level PGF commands     & \textcolor{DIC256s}{\textbf{Spot}} & Via PGF driver patch \\
+Uncolored patterns         & \textcolor{DIC256s}{\textbf{Spot}} & Via \texttt{[/Pattern~[/Separation~...]]} \\
+Fading / transparency      & \textcolor{DIC256s}{\textbf{Spot}} & Fill color is spot \\
+Opacity + blend modes      & \textcolor{DIC256s}{\textbf{Spot}} & Fill color is spot \\
+\textsf{colortbl} row colors & \textcolor{DIC256s}{\textbf{Spot}} & Via |\set@color| patch \\
+\textsf{tcolorbox}         & \textcolor{DIC256s}{\textbf{Spot}} & Frame, background, shadow \\
+\hline
+Proportional tints (\texttt{!N})   & \textcolor{DIC256s}{\textbf{Spot}} & Auto-detected \\
+Non-proportional mixes (\texttt{!N!color}) & \textbf{CMYK} & Needs \texttt{/DeviceN} \\
+Shading (gradients)        & \textbf{RGB}  & PGF hardcodes \texttt{/DeviceRGB} \\
+\hline
+\end{tabular}
+\end{center}
 
 \end{document}
