@@ -1,0 +1,343 @@
+%#!pdflatex --synctex=1 test
+\documentclass{article}\listfiles\pagestyle{empty}
+
+\usepackage[table]{xcolor}%requires colortbl, array
+\usepackage{tikz}%requires xcolor
+\usetikzlibrary{calc, patterns, patterns.meta, fadings}
+\usepackage{tcolorbox}%requires tikz, xcolor
+\tcbuselibrary{xparse,hooks,skins}
+
+\usepackage{spotxcolor}
+\definespotcolor{DIC161s}{DIC 161s*}{0, 0.64, 1, 0}
+
+% \NewSpotColorSpace{DIC}
+% \AddSpotColor{DIC}{DIC161s}{DIC\SpotSpace 161s*}{0 0.64 1 0}
+% \SetPageColorSpace{DIC}
+
+\newcommand\onelineskip{\par\vspace{\baselineskip}\par}
+
+\begin{document}
+\IfFileExists{test_version}{
+\expandafter\title\expandafter{\input{test_version}}
+\author{}
+\maketitle
+}\relax
+
+\sffamily\bfseries
+
+\section{Basic Command Tests}
+
+DIC 161
+
+\begingroup
+\color{DIC161s}DIC 161
+\endgroup
+
+\begingroup
+\color{DIC161s!50}DIC 161
+\endgroup
+
+\begingroup
+\color{DIC161s!25}DIC 161
+\endgroup
+
+\textcolor{DIC161s}{DIC 161}
+
+\textcolor{DIC161s!50}{DIC 161}
+
+\textcolor{DIC161s!25}{DIC 161}
+
+
+\SpotColor{DIC161s}{1.0}
+DIC 161
+
+\SpotColor{DIC161s}{0.5}
+DIC 161
+
+\SpotColor{DIC161s}{0.25}
+DIC 161
+
+\clearpage
+\pagecolor{DIC161s}
+
+DIC 161
+
+\clearpage
+\pagecolor{DIC161s!50}
+
+50\% DIC 161
+
+\clearpage
+\nopagecolor
+
+DIC 161
+
+\clearpage
+\section{TikZ Environment Tests}
+
+% 1-a. 簡単な図形
+% v0.14 NG: xetex, dvipdfmx
+% v0.15 OK: xetex, dvipdfmx
+% NG: colorspace 2019/03/25 v1.3
+\subsection*{Simple Shapes}
+\begin{tikzpicture}
+  \fill[DIC161s] (0,0) circle (1.5);
+  \fill[DIC161s!50] (2,-1.5) rectangle (5,1.5);
+  \draw[DIC161s, ultra thick, rounded corners] (6,-1.5) rectangle (9,1.5);
+  \fill[DIC161s!20] (6,-1.5) rectangle (9,1.5);
+%% v1.4 NOTE:
+%% CMYK値: 0 0.512 0.8 0.2
+%% 色: DIC161s!80!black
+%% 理由: 非比例混色（K成分0.2が追加）→ 正しいフォールバック
+  \node[DIC161s!80!black] at (7.5, 0) {100\%, 50\%, 20\%};
+\end{tikzpicture}
+
+\onelineskip
+
+% 1-b. 初等関数のグラフ (正弦波)
+\subsection*{Elementary Function Graph}
+\begin{tikzpicture}[domain=0:2*pi, scale=1.5, samples=100]
+  % 軸
+  \draw[->, thick, DIC161s!70] (-0.2,0) -- (6.8,0) node[right] {$x$};
+  \draw[->, thick, DIC161s!70] (0,-1.2) -- (0,1.2) node[above] {$f(x)$};
+  % グラフ本体
+  \draw[color=DIC161s, ultra thick] plot (\x,{sin(\x r)}) node[right] {$\sin x$};
+  % 補助線
+  \draw[color=DIC161s!30, dashed] (0,1) -- (2*pi,1);
+  \draw[color=DIC161s!30, dashed] (0,-1) -- (2*pi,-1);
+\end{tikzpicture}
+
+\onelineskip
+
+% 1-c. 別行立て数式 (TikZノードを使った装飾付き)
+\subsection*{Riemann Zeta Function}
+\begin{tikzpicture}
+  \node[
+    draw=DIC161s,
+    line width=1.5pt,
+    fill=DIC161s!5,
+    rounded corners=2ex,
+    inner sep=1.5em
+  ] {
+%% v1.4 NOTE:
+%% CMYK値: 0 0.512 0.8 0.2
+%% 色: DIC161s!80!black
+%% 理由: 非比例混色（K成分0.2が追加）→ 正しいフォールバック
+    \color{DIC161s!80!black}
+    $\displaystyle
+      \zeta(s)
+      = \sum_{n=1}^\infty \frac{1}{n^s}
+      = \frac{1}{\Gamma(s)} \int_0^\infty \frac{x^{s-1}}{e^x - 1} \, dx
+      \quad (\Re(s) > 1)
+    $
+  };
+\end{tikzpicture}
+
+\clearpage
+% 1-d. PGF/TikZ Stroke and Fill Tests
+% v0.1x: Test separation of stroke (CS/SC) and fill (cs/sc) operators
+\subsection*{Stroke and Fill Separation}
+
+\begin{tikzpicture}
+  % Test 1: Fill with spot color, stroke with black
+  \draw[ultra thick, fill=DIC161s!40] (0,0) circle (1.2) node[black, align=center] {Fill:\\40\% DIC161s};
+
+  % Test 2: Stroke with spot color, fill with gray
+  \draw[DIC161s, ultra thick, fill=gray!20] (3.5, -1.2) rectangle (6.5, 1.2) node[pos=0.5, black, align=center] {Stroke:\\100\% DIC161s};
+
+  % Test 3: Stroke and Fill with DIFFERENT spot color tints
+%% v1.4 NOTE:
+%% CMYK値: 0 0.512 0.8 0.2
+%% 色: DIC161s!80!black
+%% 理由: 非比例混色（K成分0.2が追加）→ 正しいフォールバック
+  \draw[DIC161s, line width=3pt, fill=DIC161s!15, rounded corners] (7.5, -1.2) rectangle (10.5, 1.2) node[pos=0.5, DIC161s!80!black, align=center] {Stroke: 100\%\\Fill: 15\%};
+\end{tikzpicture}
+
+\onelineskip
+
+% 1-e. Low-level PGF commands test (Checking pgfsys integration)
+\subsection*{Low-level PGF Color Commands}
+% Directly calling PGF commands to ensure the driver macros (\pgfsys@color@...) are hooked correctly.
+\begin{pgfpicture}
+  % Set fill color to 60% tint, stroke color to 100%
+  \pgfsetfillcolor{DIC161s!60}
+  \pgfsetstrokecolor{DIC161s}
+  \pgfsetlinewidth{4pt}
+
+  \pgfpathcircle{\pgfpoint{2cm}{0cm}}{1.5cm}
+  \pgfusepath{fill,stroke}
+
+  \pgftext[x=2cm, y=0cm]{\sffamily\color{white} PGF Native}
+\end{pgfpicture}
+
+\onelineskip
+
+% 1-f. Pattern Fill Tests (Hatching)
+\subsection*{Pattern Fill Tests (Hatching)}
+
+% v0.15:
+% * (u)platex+dvipdfmx, xelatex: OK
+% * pdflatex, lualatex: NG
+% v0.16: all engines OK
+% v0.17: Test 1: all engines OK, Test 2,3: NG
+%% v1.4 NOTE:
+%% CMYK値: 0 0.512 0.8 0.2
+%% 色: DIC161s!80!black
+%% 理由: 非比例混色（K成分0.2が追加）→ 正しいフォールバック
+\begin{tikzpicture}
+  % Test 1: 古い patterns ライブラリを使った標準的な斜線ハッチ
+  \draw[DIC161s, ultra thick, pattern=north east lines, pattern color=DIC161s]
+    (0,0) rectangle (3, 2)
+    node[pos=0.5, fill=white, inner sep=2pt, font=\sffamily\small, text=DIC161s!80!black] {Basic Hatch};
+
+  % Test 2: patterns.meta ライブラリを使ったカスタマイズ斜線 (60% tint)
+  \draw[DIC161s, ultra thick, pattern={Lines[angle=45, distance=6pt, line width=1.5pt]}, pattern color=DIC161s!60]
+    (4,0) rectangle (7, 2)
+    node[pos=0.5, fill=white, inner sep=2pt, font=\sffamily\small, text=DIC161s!80!black] {Meta Lines (60\%)};
+
+  % Test 3: patterns.meta ライブラリを使ったドットパターン (40% tint)
+  \draw[DIC161s, ultra thick, pattern={Dots[distance=3mm, radius=1mm]}, pattern color=DIC161s!40]
+    (8,0) rectangle (11, 2)
+    node[pos=0.5, fill=white, inner sep=2pt, font=\sffamily\small, text=DIC161s!80!black] {Meta Dots (40\%)};
+\end{tikzpicture}
+
+\clearpage
+
+% 1-g. Fading Tests (Transparency Masks)
+\subsection*{Fading Tests (Transparency Masks)}
+
+\begin{tikzpicture}
+  % 背景として特色の網点を敷く
+  \fill[DIC161s!20] (-1,-1) rectangle (10, 2);
+
+  % Test 1: 左から右へ透明になるフェーディング
+  \fill[DIC161s, path fading=east] (0, 0) rectangle (4, 1.5)
+    node[pos=0.5, text=white, font=\sffamily\small] {Fading East};
+
+  % Test 2: 中心から外側へ透明になる円形フェーディング
+  \fill[DIC161s, path fading=circle with fuzzy edge 20 percent] (7, 0.5) circle (1.2)
+    node[text=white, font=\sffamily\small] {Fuzzy Circle};
+\end{tikzpicture}
+
+\onelineskip
+
+% 1-h. Shading Tests (Gradients)
+\subsection*{Shading Tests (Gradients)}
+% Note: Standard PGF shadings might fallback to RGB natively depending on the driver.
+% This tests if xcolor's CMYK definition survives the gradient creation.
+\begin{tikzpicture}
+  % Test 1: 特色100%から特色10%への線形グラデーション (left to right)
+  \shade[left color=DIC161s, right color=DIC161s!10] (0,0) rectangle (4, 1.5)
+    node[pos=0.5, font=\sffamily\small, text=white] {Linear Shading};
+
+  % Test 2: 中心が白、外側が特色の放射状グラデーション
+  \shade[inner color=white, outer color=DIC161s] (7, 0.5) circle (1.2)
+    node[font=\sffamily\small, text=white] {Radial Shading};
+\end{tikzpicture}
+
+\clearpage
+
+\onelineskip
+
+% 1-i. Opacity and Blend Modes
+\subsection*{Opacity and Blend Modes}
+\begin{tikzpicture}
+  % 背景
+  \fill[gray!20] (0,0) rectangle (8,3);
+
+  % Test 1: Tint (網点) + Opacity (アルファチャンネル透過) の複合
+  % !80 で色を薄くしつつ、さらに opacity=0.5 で透かすという、PDFオペレータ的には全く異なる2つの処理の同時適用
+  \fill[DIC161s!80, opacity=0.5] (1.5, 1.5) circle (1.2)
+    node[black, opacity=1, font=\sffamily\small, align=center] {Tint: 80\%\\Opacity: 0.5};
+
+  % Test 2: ブレンドモード (乗算 / Multiply)
+  % 特色とプロセスカラー(Cyan, Yellow)を乗算モードで重ねる
+  \begin{scope}[blend mode=multiply]
+    \fill[DIC161s] (5.5, 1.8) circle (1);
+    \fill[cyan] (5.0, 1.0) circle (1);
+    \fill[yellow] (6.0, 1.0) circle (1);
+  \end{scope}
+  \node[font=\sffamily\small] at (5.5, 3.2) {Multiply Blend: DIC161s + Cyan + Yellow};
+\end{tikzpicture}
+
+\onelineskip
+
+% 1-j. Mixed Color Space Shading
+\subsection*{Mixed Color Space Shading}
+% 異なるカラーモデル(RGBの赤 と CMYK/特色のDIC161)を両端に指定したグラデーション。
+% PGFが内部でこれをどう補間し、どのカラースペース(おそらくRGBかCMYKに強制フォールバック)で出力するか。エラーでクラッシュしないかが重要。
+\begin{tikzpicture}
+  \shade[left color=red, right color=DIC161s] (0,0) rectangle (8, 1.5)
+    node[pos=0.5, font=\sffamily\small, text=white] {Red (RGB) to DIC161s (CMYK)};
+\end{tikzpicture}
+
+\clearpage
+
+% ==========================================
+\section{Zebra-striped Table Test}
+
+% 行の偶奇で背景色を変える (colortbl の機能)
+\rowcolors{2}{DIC161s!10}{white}
+\begin{center}
+  \renewcommand{\arraystretch}{1.5}
+  \begin{tabular}{p{3cm} p{5cm} c}
+    % ヘッダー行
+    \rowcolor{DIC161s}
+    \textcolor{white}{\textbf{Parameter}} & \textcolor{white}{\textbf{Description}} & \textcolor{white}{\textbf{Value}} \\
+    Alpha   & First coefficient used in calc & 0.98 \\
+    Beta    & Secondary alignment offset     & 1.24 \\
+    Gamma   & Spot color tint percentage     & 50\% \\
+    Delta   & Base margin parameter          & 4.00 \\
+    Epsilon & Threshold for error correction & 0.01 \\
+  \end{tabular}
+\end{center}
+
+\onelineskip
+
+% ==========================================
+\section{tcolorbox Test}
+
+\begin{tcolorbox}[
+  enhanced, % skinsライブラリの機能
+  colframe=DIC161s,       % 枠線の色
+  colback=DIC161s!5,      % 背景色 (5% tint)
+  coltitle=white,        % タイトル文字色
+  colbacktitle=DIC161s!80,% タイトル背景色 (80% tint)
+  fonttitle=\sffamily\bfseries\Large,
+  title={spotxcolor $\times$ tcolorbox},
+  drop fuzzy shadow=DIC161s!30 % 影の色にも特色を指定
+]
+This is an example of \textbf{tcolorbox} seamlessly integrating with the \textsf{spotxcolor} package.
+
+\onelineskip
+
+\begin{itemize}
+  \item The outer frame is drawn in \textcolor{DIC161s}{100\% DIC161}.
+  \item The title background uses \textcolor{DIC161s!80}{80\% DIC161}.
+  \item The content background uses a subtle \textcolor{DIC161s!10}{10\% DIC161} tint.
+  \item Even the drop shadow is rendered using a \textcolor{DIC161s!30}{30\% DIC161} tint!
+\end{itemize}
+\end{tcolorbox}
+
+\clearpage
+
+% ==========================================
+\section{Backward Compatibility Tests}
+
+\subsection*{\textsf{colorspace} package macros}
+
+This page tests the dummy backward compatibility macros for the \textsf{colorspace} package.
+They should produce no visible output and cause no compilation errors.
+\onelineskip
+
+Testing \verb|\pagecolorspace|...
+\pagecolorspace{DIC161s} % Should silently do nothing
+\onelineskip
+
+Testing \verb|\resetpagecolorspace|...
+\resetpagecolorspace % Should silently do nothing
+\onelineskip
+
+If the document compiles successfully and this page renders without errors, the backward compatibility wrappers are working perfectly.
+
+\end{document}
