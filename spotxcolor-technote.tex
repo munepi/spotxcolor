@@ -9,7 +9,10 @@
 \tcbuselibrary{skins}
 
 \usepackage{spotxcolor}
-\definespotcolor{DIC161s}{DIC 161s*}{0, 0.64, 1, 0}
+% Define Triadic Spot Colors for Examples
+\definespotcolor{DIC161s}{DIC 161s*}{0, 0.64, 1, 0}   % Vermilion
+\definespotcolor{DIC256s}{DIC 256s*}{0.9, 0, 0.4, 0}  % Green
+\definespotcolor{DIC200s}{DIC 200s*}{0.5, 0.8, 0, 0}  % Purple
 
 \newcommand\pkg[1]{\textsf{#1}}
 \newcommand\cs[1]{\texttt{\textbackslash #1}}
@@ -320,5 +323,135 @@ The spot color operators override the CMYK state, so the visual result is correc
 
 For |\pagecolor|, |\special{background cmyk ...}| generates a separate background content stream that cannot be overridden.
 \pkg{spotxcolor} uses the |shipout/background| hook to emit a spot-colored full-page rectangle in the main content stream, which paints over the CMYK background.
+
+
+\section{Comparison of Implementation Approaches}
+
+This section compares the internal architecture of the four spot color packages.
+Understanding these differences explains why each package has its particular set of capabilities and limitations.
+
+\subsection{\textsf{spotcolor} --- Direct PDF Literal Injection}
+
+The \textsf{spotcolor} package (2006) takes the simplest possible approach.
+Designed exclusively for pdfTeX, its |\SpotColor| command directly emits PDF literal operators via |\pdfliteral|:
+
+\begin{quote}
+\begin{verbatim}
+\pdfliteral{/NAME cs /NAME CS TINT sc TINT SC}
+\end{verbatim}
+\end{quote}
+
+This bypasses the \LaTeX\ color stack entirely, so the spot color state is lost at page breaks.
+The package does define a custom \pkg{xcolor} color model (|spotcolor|) via |\xcolor@{}{}{spotcolor}{...}|, but \pkg{xcolor}'s driver code does not know how to render this model, so standard commands like |\textcolor| do not produce spot color output.
+
+There is no PGF integration, no pattern support, and no interaction with |\set@color|.
+
+\subsection{\textsf{xespotcolor} --- XeTeX/dvipdfmx Focused}
+
+The \textsf{xespotcolor} package (2014--2021) targets Xe\LaTeX\ and \texttt{dvipdfmx}.
+Its core command |\SpotColor| uses |\special{pdf:literal ...}| followed by |\aftergroup\reset@color| to partially manage the color state.
+
+Its most notable contribution is defining custom PGF driver macros:
+
+\begin{quote}
+\begin{verbatim}
+\gdef\pgfsys@color@spotcolor@stroke#1#2{
+  \special{pdf:literal /#1 CS #2 SC}}
+\gdef\pgfsys@color@spotcolor@fill#1#2{
+  \special{pdf:literal /#1 cs #2 sc}}
+\end{verbatim}
+\end{quote}
+
+However, these macros are only called when the user explicitly invokes spot color commands.
+Standard \pkg{xcolor} operations (|\color|, |\textcolor|) go through the normal CMYK driver macros and produce process color output.
+The package also disables PGF's color space management (|\pgf@sys@pdf@colorspaces@existsfalse|) when TikZ or \pkg{tcolorbox} is loaded, which is a workaround for resource dictionary conflicts.
+
+\subsection{\textsf{colorspace} --- xcolor Internal Hook}
+
+The \textsf{colorspace} package (2015--2019) takes a more sophisticated approach.
+It defines custom \pkg{xcolor} color models and hooks into \pkg{xcolor}'s internal color representation by storing a ``spot color reference'' (the PDF color space name) alongside the standard color data.
+
+When |\set@color| processes a color, \textsf{colorspace} extracts this reference from |\current@color| and uses it to emit the correct Separation operators.
+It also provides PGF driver macros (|\pgfsys@color@&spot@fill|, etc.) that retrieve the spot color reference from PGF's internal fill/stroke color variables.
+
+Key limitations:
+
+\begin{itemize}
+\item \textbf{No dvipdfmx/XeTeX support:} The package directly uses |\pdfobj| and |\pdfpageresources|, which are pdfTeX/LuaTeX primitives.
+There is no |\special|-based fallback.
+
+\item \textbf{Manual page resource management:} Users must call |\pagecolorspace{...}| and |\resetpagecolorspace| to manage the |/ColorSpace| dictionary, which is fragile in modern \LaTeX.
+
+\item \textbf{No pattern support:} While the package provides fill/stroke PGF driver macros, uncolored patterns still use the default |[/Pattern /DeviceCMYK]| color space with CMYK values.
+
+\item \textbf{DeviceN support:} Uniquely among these packages, \textsf{colorspace} supports |/DeviceN| color spaces for multi-ink combinations.
+\end{itemize}
+
+\subsection{\textsf{spotxcolor} --- Late-Stage Interception}
+
+\pkg{spotxcolor} (2026) takes a fundamentally different approach: rather than modifying \pkg{xcolor}'s internal color model, it lets \pkg{xcolor} operate entirely in CMYK and intercepts the output at multiple stages.
+
+The key insight is that for proportional tints (|DIC161s!N|), the resulting CMYK values are always a scalar multiple of the base spot color's CMYK values.
+By checking this proportionality at output time, \pkg{spotxcolor} can transparently convert CMYK to Separation operators without any cooperation from \pkg{xcolor}'s mixing engine.
+
+Four interception layers cover all output paths:
+
+\begin{enumerate}
+\item |\set@color| (xcolor color stack) --- covers |\color|, |\textcolor|, \pkg{colortbl}, \pkg{tcolorbox}
+\item |\set@page@color| --- covers |\pagecolor|
+\item PGF driver macros (|\pgfsys@color@cmyk@fill|, etc.) --- covers TikZ fill/stroke
+\item |\pgfsys@setpatternuncolored| --- covers pattern fills via |[/Pattern [/Separation ...]]|
+\end{enumerate}
+
+This approach has the advantage of being completely transparent to all packages that use \pkg{xcolor} or PGF for color management, requiring no special commands or manual resource management.
+The trade-off is that non-proportional mixes (|DIC161s!80!black|) cannot be detected and fall back to CMYK, whereas \textsf{colorspace}'s DeviceN support can theoretically handle such cases.
+
+\subsection{Summary of Architectural Differences}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\small
+\begin{tabular}{lllll}
+\hline
+\textbf{Aspect}
+  & \textsf{spotcolor}
+  & \textsf{xespotcolor}
+  & \textsf{colorspace}
+  & \textsf{spotxcolor} \\
+\hline
+Color model
+  & custom
+  & custom
+  & custom
+  & CMYK (native) \\
+Interception
+  & none
+  & explicit cmd
+  & |\current@color|
+  & |\set@color| + PGF \\
+Color stack
+  & no
+  & partial
+  & yes
+  & yes \\
+Resource mgmt
+  & manual
+  & manual
+  & manual
+  & automatic \\
+Engine support
+  & pdf only
+  & xe/dvipdfmx
+  & pdf/lua
+  & all four \\
+Code style
+  & \LaTeXe
+  & \LaTeXe
+  & \LaTeXe
+  & expl3 + \LaTeXe \\
+\hline
+\end{tabular}
+\end{center}
+
 
 \end{document}
