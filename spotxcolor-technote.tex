@@ -1,0 +1,324 @@
+%#!lualatex -synctex=1 spotxcolor-technote
+\documentclass[luatex]{article}
+\usepackage{shortvrb}\AtBeginDocument{\MakeShortVerb{\|}}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tikz}
+\usepackage{tcolorbox}
+\tcbuselibrary{skins}
+
+\usepackage{spotxcolor}
+\definespotcolor{DIC161s}{DIC 161s*}{0, 0.64, 1, 0}
+
+\newcommand\pkg[1]{\textsf{#1}}
+\newcommand\cs[1]{\texttt{\textbackslash #1}}
+\newcommand\op[1]{\texttt{#1}}
+
+\title{\textsf{spotxcolor} Technical Note}
+\author{Munehiro Yamamoto}
+\date{2026/03/17 v1.4}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+This document describes the design rationale and internal architecture of the \pkg{spotxcolor} package.
+It is intended for developers, contributors, and advanced users who wish to understand how spot color output is achieved across all \TeX\ engines and graphics layers, and why certain limitations exist.
+For usage instructions, see the companion document \texttt{spotxcolor.tex}.
+\end{abstract}
+
+\tableofcontents
+
+% =====================================================================
+\section{Design Philosophy}
+% =====================================================================
+
+\subsection{The Problem}
+
+PDF spot colors (Separation color spaces) require a fundamentally different PDF structure from process colors (DeviceCMYK/DeviceRGB).
+While \pkg{xcolor} provides an excellent color mixing and tinting engine, it has no awareness of PDF Separation color spaces.
+Every color---including spot colors registered via |\definecolor{...}{cmyk}{...}|---is ultimately emitted as CMYK (or RGB) operators in the PDF content stream.
+
+The legacy \pkg{spotcolor} package and the more modern \pkg{colorspace} package each attempted to solve this, but with significant limitations:
+\pkg{spotcolor} suffered from structural PDF issues with modern \pkg{expl3}/\pkg{xcolor} updates,
+and \pkg{colorspace} lacked full support for \texttt{dvipdfmx}-based workflows ((u)p\LaTeX).
+
+\subsection{The Strategy: Intercept, Detect, Replace}
+
+Rather than modifying \pkg{xcolor}'s internal color model (which would break its mixing engine),
+\pkg{spotxcolor} takes a non-invasive approach:
+
+\begin{enumerate}
+\item \textbf{Register normally.}
+  Each spot color is registered in \pkg{xcolor}'s database as standard CMYK via |\definecolor|.
+  This preserves full compatibility with \pkg{xcolor}'s tinting (|DIC161s!50|), mixing, and color expression engine.
+
+\item \textbf{Create PDF objects.}
+  At definition time, \pkg{spotxcolor} creates the PDF Separation color space objects (Tint Transform Function + Separation array) and registers them in the page's |/ColorSpace| resource dictionary.
+
+\item \textbf{Intercept at output time.}
+  At the point where CMYK values are about to be written into the PDF content stream, \pkg{spotxcolor} checks whether those values are a proportional scalar multiple of any registered spot color's base CMYK.
+  If so, the CMYK operators are replaced with Separation color space operators.
+\end{enumerate}
+
+This ``late interception'' strategy means \pkg{spotxcolor} is transparent to \pkg{xcolor}, \pkg{PGF}/\pkg{TikZ}, \pkg{tcolorbox}, and \pkg{colortbl}---they all continue to work with standard CMYK values, unaware that the final PDF output uses spot colors.
+
+\subsection{Proportional Tint Detection}
+
+The core matching algorithm is simple:
+given the current CMYK values $(c, m, y, k)$ and a registered spot color with base CMYK $(b_c, b_m, b_y, b_k)$,
+\pkg{spotxcolor} computes the tint factor $t$ from the dominant (largest) base component and verifies that all four components satisfy:
+\[
+  \lvert c_i - t \cdot b_i \rvert < \varepsilon \quad (i \in \{c, m, y, k\})
+\]
+where $\varepsilon = 0.005$.
+If all four pass, the color is recognized as tint $t$ of that spot color.
+
+This detects all expressions of the form |DIC161s!N| (where $N$ is a percentage).
+Expressions like |DIC161s!80!black| produce non-proportional CMYK values (the K component is introduced by the black mix) and correctly fall back to CMYK.
+
+% =====================================================================
+\section{Interception Points}
+% =====================================================================
+
+\pkg{spotxcolor} patches multiple interception points to achieve comprehensive spot color coverage.
+Each point addresses a different code path through which colors reach the PDF content stream.
+
+\subsection{Layer 1: \cs{set@color} (xcolor/LaTeX color stack)}
+
+\textbf{Covers:} |\color|, |\textcolor|, \pkg{colortbl} row colors, \pkg{tcolorbox} elements.
+
+When \pkg{xcolor} processes a color command, it computes the final CMYK values, stores them in |\current@color|, and calls |\set@color| to push the color onto the PDF color stack.
+
+\pkg{spotxcolor} patches |\set@color| at |\AtBeginDocument|:
+
+\begin{itemize}
+\item \textbf{pdfTeX/LuaTeX:}
+  Before the original |\set@color| executes, |\current@color| is parsed.
+  If a spot color match is found, |\current@color| is replaced with the spot color operator string (e.g., |/DIC161s cs /DIC161s CS 0.5 sc 0.5 SC|).
+  The original |\set@color| then pushes this modified string onto the color stack via |\pdfliteral|.
+
+\item \textbf{dvipdfmx/XeTeX:}
+  |\current@color| cannot be replaced with raw PDF operators because |\special{color push cmyk ...}| expects model-prefixed format.
+  Instead, the original |\set@color| runs first (CMYK color push), then |\special{pdf:code ...}| is emitted to override with spot color operators.
+\end{itemize}
+
+\medskip
+\noindent\textbf{Technical pitfall---ExplSyntax catcodes:}
+All references to |\set@color|, |\current@color|, and |\set@page@color| in \pkg{expl3} code must use |c|-type access (e.g., |\cs_set_eq:cc{...}{set@color}|) because |@| is catcode~12 (other) in \pkg{expl3} but catcode~11 (letter) in these \LaTeX\ kernel macros.
+Attempting to write |\set@color| directly in \pkg{expl3} code causes \TeX\ to parse it as |\set| followed by |@color|.
+
+\subsection{Layer 2: \cs{set@page@color} (\cs{pagecolor})}
+
+\textbf{Covers:} |\pagecolor|, |\nopagecolor|.
+
+\pkg{xcolor}'s |\pagecolor| calls |\set@page@color| \emph{without} going through |\set@color|, so the Layer~1 patch does not affect it.
+
+\begin{itemize}
+\item \textbf{pdfTeX/LuaTeX:}
+  |\set@page@color| copies |\current@color| to |\current@page@color|.
+  \pkg{spotxcolor} intercepts \emph{before} this copy, modifying |\current@color| so the fill rectangle uses spot operators.
+
+\item \textbf{dvipdfmx/XeTeX:}
+  |\special{background cmyk ...}| only supports standard color models.
+  \pkg{spotxcolor} lets the original run (CMYK fallback), stores the spot color operators, and uses a |shipout/background| hook to overdraw with a spot-colored full-page rectangle.
+  A reverse-CTM translation (|q 1 0 0 1 -TX -TY cm ... Q|) maps coordinates from the content stream's translated origin back to absolute PDF coordinates.
+\end{itemize}
+
+\subsection{Layer 3: PGF Driver Macros (TikZ fill/stroke)}
+
+\textbf{Covers:} |\fill|, |\draw|, |\pgfsetfillcolor|, |\pgfsetstrokecolor|, all TikZ color operations.
+
+PGF's internal color management resolves colors through its own code path and calls low-level driver macros defined in \texttt{pgfsys-common-pdf.def}:
+
+\begin{quote}
+\begin{verbatim}
+\pgfsys@color@cmyk@fill#1#2#3#4
+  → \pgfsysprotocol@literal{#1 #2 #3 #4 k}
+\pgfsys@color@cmyk@stroke#1#2#3#4
+  → \pgfsysprotocol@literal{#1 #2 #3 #4 K}
+\end{verbatim}
+\end{quote}
+
+These macros bypass |\set@color| entirely.
+\pkg{spotxcolor} patches all four CMYK driver macros (|cmyk@fill|, |cmyk@stroke|, |cmy@fill|, |cmy@stroke|) to check the four component arguments against registered spot colors.
+If matched, fill uses |/NAME cs TINT sc| and stroke uses |/NAME CS TINT SC|.
+
+Since \texttt{pgfsys-common-pdf.def} is shared by all engines, a single set of patches covers pdfTeX, LuaTeX, XeTeX, and dvipdfmx.
+
+\subsection{Layer 4: PGF Uncolored Patterns}
+
+\textbf{Covers:} |pattern color=DIC161s!60|, |pattern={Lines[...]}, pattern color=...|.
+
+PGF uncolored patterns use a dedicated color space |[/Pattern /DeviceCMYK]| (registered as |/pgfpcmyk|) with the operator format:
+\begin{quote}
+  |/pgfpcmyk cs C M Y K /pgfpatN scn|
+\end{quote}
+
+For spot colors, a different color space is needed: |[/Pattern [/Separation ...]]|.
+\pkg{spotxcolor} creates these objects (one per registered spot color) at |\AtBeginDocument| and registers them as |/pgfpspot_NAME| in page resources.
+
+Then |\pgfsys@setpatternuncolored| is wrapped: when the CMYK arguments match a spot color, the output becomes:
+\begin{quote}
+  |/pgfpspot_DIC161s cs 0.6 /pgfpat21 scn|
+\end{quote}
+
+\medskip
+\noindent\textbf{Technical pitfall---catcode boundary crossing:}
+The pattern patch must be installed inside a |\makeatletter| / |\AtBeginDocument| block (to run after PGF defines |\pgfsys@setpatternuncolored|), but the patch code uses \pkg{expl3} functions.
+Writing |\ExplSyntaxOn| inside |\AtBeginDocument{...}| has \emph{no effect} because the argument is already tokenized at file-read time with |_| as catcode~8 (subscript).
+
+The solution: define a wrapper function |\__spotxcolor_install_pattern_spot_patch:| in the \pkg{expl3} region (correct catcodes), then call it from the |\makeatletter| block via |\csname __spotxcolor_install_pattern_spot_patch:\endcsname|.
+|\csname| constructs control sequence names from character codes, ignoring catcodes, and thus correctly bridges the catcode boundary.
+
+% =====================================================================
+\section{What Cannot Be Intercepted}
+% =====================================================================
+
+\subsection{Hatching vs.\ Shading: A Structural Difference}
+
+Both hatching (patterns) and shading (gradients) are PDF features used by PGF/TikZ, but they differ fundamentally in \emph{where the color information lives} in the PDF structure.
+
+\subsubsection{Hatching (Uncolored Patterns)}
+
+Color is specified by \textbf{operators in the content stream}:
+\begin{quote}
+\begin{verbatim}
+/pgfpcmyk cs 0 0.64 1 0 /pgfpat3 scn   % CMYK hatching
+\end{verbatim}
+\end{quote}
+
+The pattern tile itself (defined in a separate Pattern object) is color-independent---it describes only geometry (line angles, spacing, dot radii).
+The color is applied at the point of use via the |cs|/|scn| operators.
+
+\pkg{spotxcolor} intercepts at this point: it wraps |\pgfsys@setpatternuncolored| and replaces the operator with a spot color pattern color space:
+\begin{quote}
+\begin{verbatim}
+/pgfpspot_DIC161s cs 0.6 /pgfpat21 scn  % spot color hatching
+\end{verbatim}
+\end{quote}
+
+This required creating |[/Pattern [/Separation ...]]| color space objects but \emph{no changes} to PGF's pattern generation code.
+
+\subsubsection{Shading (Gradients)}
+
+Color is \textbf{frozen into a standalone PDF object} (Shading dictionary) at definition time:
+\begin{quote}
+\begin{verbatim}
+<< /ShadingType 2
+   /ColorSpace /DeviceRGB          % hardcoded by PGF
+   /Function << /C0 [r g b]        % endpoint colors as RGB
+                /C1 [r g b] ... >>
+>>
+\end{verbatim}
+\end{quote}
+
+This Shading dictionary is wrapped in a Form XObject (|/Fm16|, |/Fm17|, etc.) and referenced from the content stream with a single operator:
+\begin{quote}
+\begin{verbatim}
+/Fm16 Do    % "paint this shading" — no color info here
+\end{verbatim}
+\end{quote}
+
+The content stream contains \emph{no color operators} to intercept.
+The color has already been resolved to RGB and embedded in the object.
+
+True spot color gradients would require:
+\begin{enumerate}
+\item Generating Shading objects with |/ColorSpace [/Separation /DIC#20161s* /DeviceCMYK funcRef]|
+\item Using tint values (|/C0 [1]|, |/C1 [0.1]|) instead of RGB triples
+\item Rewriting PGF's shading generation code in \texttt{pgfcoreshading.code.tex}
+\end{enumerate}
+
+This is architecturally infeasible at the driver-patch level and constitutes a PGF core modification.
+
+\subsection{Non-Proportional Color Mixes and DeviceN}
+
+Expressions like |DIC161s!80!black| produce CMYK values $(0, 0.512, 0.8, 0.2)$.
+The $K=0.2$ component breaks proportionality with the base $(0, 0.64, 1, 0)$, so no single-spot tint can represent this color.
+
+The PDF specification provides |/DeviceN| color spaces for multi-ink combinations:
+\begin{quote}
+\begin{verbatim}
+[/DeviceN [/DIC#20161s* /Black] /DeviceCMYK ...]
+\end{verbatim}
+\end{quote}
+
+Implementing DeviceN support would require:
+\begin{itemize}
+\item Parsing non-proportional CMYK values to decompose them into spot + process components
+\item Creating DeviceN color space objects with multi-dimensional tint transform functions
+\item Extending the matching engine to handle multi-spot combinations
+\end{itemize}
+
+This is a substantial extension and is considered out of scope for \pkg{spotxcolor}.
+
+% =====================================================================
+\section{Operator String Construction}
+% =====================================================================
+
+A recurring technical challenge in \pkg{spotxcolor} is constructing PDF operator strings with correct spacing in the \pkg{expl3} environment.
+
+\subsection{The Space Swallowing Problem}
+
+In \pkg{expl3}, |~| (tilde) has catcode~10 (space).
+However, after \TeX\ reads a control sequence name, it enters ``state~S'' (skipping spaces).
+In this state, a catcode-10 token is silently discarded:
+
+\begin{quote}
+\begin{verbatim}
+% BROKEN: space after \g__spotxcolor_matched_name_tl is swallowed
+\tl_set:Nx \l_tmpa_tl
+  { / \g__spotxcolor_matched_name_tl ~ cs ~ ... }
+% Produces: /DIC161scs (no space!)
+\end{verbatim}
+\end{quote}
+
+\subsection{The Solution: n-type Alternation}
+
+\pkg{spotxcolor} builds operator strings using |\tl_put_right:Nn| (n-type, literal tokens) alternating with |\tl_put_right:NV| (V-type, variable expansion):
+
+\begin{quote}
+\begin{verbatim}
+\tl_clear:N \l_tmpb_tl
+\tl_put_right:Nn \l_tmpb_tl { / }
+\tl_put_right:NV \l_tmpb_tl \g__spotxcolor_matched_name_tl
+\tl_put_right:Nn \l_tmpb_tl { ~cs~/ }   % ~ is in braces → state M
+\tl_put_right:NV \l_tmpb_tl \g__spotxcolor_matched_name_tl
+\tl_put_right:Nn \l_tmpb_tl { ~CS~ }
+...
+\end{verbatim}
+\end{quote}
+
+The |~| inside braces is read in state~M (middle of line), where catcode-10 tokens are preserved.
+This guarantees correct spacing: |/DIC161s cs /DIC161s CS 1 sc 1 SC|.
+
+% =====================================================================
+\section{Engine-Specific Considerations}
+% =====================================================================
+
+\subsection{pdfTeX and LuaTeX}
+
+These engines support |\pdfliteral| (or |\pdfextension literal|) which writes raw strings directly into the content stream.
+|\current@color| is stored as a raw operator string (e.g., |0 0.64 1 0 k 0 0.64 1 0 K|).
+\pkg{spotxcolor} can modify |\current@color| in-place before it is pushed, making interception clean and complete.
+
+\subsection{dvipdfmx and XeTeX}
+
+These engines use |\special{color push cmyk c m y k}| for color stack management.
+The |cmyk| model prefix is required; raw PDF operators cannot be passed through this channel.
+
+\pkg{spotxcolor}'s approach for these engines:
+\begin{enumerate}
+\item Let the original |\set@color| execute (CMYK color push via |\special{color push ...}|).
+\item Immediately emit |\special{pdf:code /NAME cs /NAME CS TINT sc TINT SC}| to override.
+\end{enumerate}
+
+This produces content streams where CMYK operators appear followed by spot color operators.
+The spot color operators override the CMYK state, so the visual result is correct.
+
+For |\pagecolor|, |\special{background cmyk ...}| generates a separate background content stream that cannot be overridden.
+\pkg{spotxcolor} uses the |shipout/background| hook to emit a spot-colored full-page rectangle in the main content stream, which paints over the CMYK background.
+
+\end{document}
