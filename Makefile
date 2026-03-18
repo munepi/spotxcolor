@@ -14,6 +14,8 @@ spotxcolor.zip: clean spotxcolor.pdf
 	git archive --format=tar --prefix=spotxcolor/ HEAD | gtar -x
 	## remove unpacked files
 	rm -f spotxcolor/.gitignore spotxcolor/Makefile
+	## move tools/ to the root directory
+	mv spotxcolor/tools/* spotxcolor/
 	## then, now just make archive
 	zip -9 -r spotxcolor.zip spotxcolor/*
 	rm -rf spotxcolor
