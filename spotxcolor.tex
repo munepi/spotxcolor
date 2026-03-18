@@ -1,9 +1,9 @@
 %#!lualatex -synctex=1 spotxcolor
-\documentclass[luatex]{article}
+\documentclass[luatex]{article}\listfiles
 \usepackage{shortvrb}\AtBeginDocument{\MakeShortVerb{\|}}
 \usepackage{needspace}
 \usepackage{hyperref}
-\usepackage{xcolor}
+\usepackage[table]{xcolor}
 
 % For Examples
 \usepackage{tikz}
@@ -17,6 +17,11 @@
 \definespotcolor{DIC161s}{DIC 161s*}{0, 0.64, 1, 0}   % Vermilion
 \definespotcolor{DIC256s}{DIC 256s*}{0.9, 0, 0.4, 0}  % Green
 \definespotcolor{DIC200s}{DIC 200s*}{0.5, 0.8, 0, 0}  % Purple
+
+\makeatletter\let\hangingbox\@hangfrom\makeatother
+\newcommand\pkg[1]{\textsf{#1}}
+\newcommand\cs[1]{\texttt{\textbackslash #1}}
+\newcommand\op[1]{\texttt{#1}}
 
 \title{\textsf{spotxcolor} Package}
 \author{Munehiro Yamamoto}
@@ -282,7 +287,7 @@ True spot color gradients would require generating Shading objects with \texttt{
 
 \begin{center}
 \renewcommand{\arraystretch}{1.3}
-\begin{tabular}{lll}
+\begin{tabular}{ll>{\raggedright\arraybackslash}m{11em}}
 \hline
 \textbf{Feature} & \textbf{Status} & \textbf{Notes} \\
 \hline
@@ -291,7 +296,7 @@ True spot color gradients would require generating Shading objects with \texttt{
 |\SpotColor|               & \textcolor{DIC256s}{\textbf{Spot}} & Direct PDF literal \\
 TikZ fill/stroke           & \textcolor{DIC256s}{\textbf{Spot}} & Via PGF driver patch \\
 Low-level PGF commands     & \textcolor{DIC256s}{\textbf{Spot}} & Via PGF driver patch \\
-Uncolored patterns         & \textcolor{DIC256s}{\textbf{Spot}} & Via \texttt{[/Pattern~[/Separation~...]]} \\
+Uncolored patterns         & \textcolor{DIC256s}{\textbf{Spot}} & Via \texttt{[/Pattern\space [/Separation~...]]} \\
 Fading / transparency      & \textcolor{DIC256s}{\textbf{Spot}} & Fill color is spot \\
 Opacity + blend modes      & \textcolor{DIC256s}{\textbf{Spot}} & Fill color is spot \\
 \textsf{colortbl} row colors & \textcolor{DIC256s}{\textbf{Spot}} & Via |\set@color| patch \\
@@ -301,6 +306,84 @@ Proportional tints (\texttt{!N})   & \textcolor{DIC256s}{\textbf{Spot}} & Auto-d
 Non-proportional mixes (\texttt{!N!color}) & \textbf{CMYK} & Needs \texttt{/DeviceN} \\
 Shading (gradients)        & \textbf{RGB}  & PGF hardcodes \texttt{/DeviceRGB} \\
 \hline
+\end{tabular}
+\end{center}
+
+
+\section{Comparison with Other Spot Color Packages}
+
+Several \LaTeX\ packages provide spot color support.
+This section compares them to help you choose the right tool for your workflow.
+
+\subsection{Package Overview}
+
+\begin{description}
+\item[\textsf{spotcolor} (2006)]
+The original spot color package, designed exclusively for pdf\LaTeX.
+It defines a custom \textsf{xcolor} color model (|spotcolor|) and provides the |\SpotColor| command for direct PDF literal injection via |\pdfliteral|.
+However, |\SpotColor| does not use the color stack, so spot color output does not survive page breaks.
+It only supports \texttt{pdftex} (no \texttt{luatex}, \texttt{dvipdfmx}, or \texttt{xetex} support) and has no PGF/TikZ integration.
+
+\item[\textsf{xespotcolor} (2014--2021)]
+A spot color package for Xe\LaTeX\ and \texttt{dvipdfmx}.
+It provides basic PGF integration by defining custom PGF driver macros (|\pgfsys@color@spotcolor@fill|, etc.), but these only work when the user explicitly calls a spot color command---standard \textsf{xcolor} commands still produce CMYK.
+It does not support \texttt{pdftex} or \texttt{luatex}.
+
+\item[\textsf{colorspace} (2015--2019)]
+A modern package supporting Separation and DeviceN color spaces.
+It hooks into \textsf{xcolor}'s internal color representation and provides PGF fill/stroke driver macros.
+It supports \texttt{pdftex} and \texttt{luatex}, but \textbf{not} \texttt{dvipdfmx} or Xe\LaTeX.
+It requires manual page resource management (|\pagecolorspace|, |\resetpagecolorspace|).
+
+\item[\textsf{spotxcolor} (2026)]
+This package.
+It intercepts all color output paths---\textsf{xcolor}'s |\set@color|, PGF driver macros, and PGF pattern primitives---to transparently convert proportional spot color tints from CMYK to Separation operators.
+It supports all four major engines and requires no special commands beyond standard \textsf{xcolor} usage.
+\end{description}
+
+\subsection{Feature Comparison}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\small
+\begin{tabular}{lcccc}
+\hline
+\textbf{Feature}
+  & \textsf{spotcolor}
+  & \textsf{xespotcolor}
+  & \textsf{colorspace}
+  & \textsf{spotxcolor} \\
+\hline
+pdftex              & Yes & ---  & Yes & Yes \\
+luatex              & --- & ---  & Yes & Yes \\
+xetex               & --- & Yes  & --- & Yes \\
+dvipdfmx            & --- & Yes  & --- & Yes \\
+\hline
+|\color|, |\textcolor| as spot
+                    & --- & ---  & Yes & Yes \\
+|\pagecolor| as spot
+                    & --- & ---  & --- & Yes \\
+Color stack (page breaks)
+                    & --- & ---  & Yes & Yes \\
+Tinted expressions (|!50|)
+                    & --- & ---  & Yes & Yes \\
+\hline
+PGF fill/stroke     & --- & Yes$^\dagger$ & Yes & Yes \\
+PGF pattern fills as spot
+                    & --- & ---  & --- & Yes \\
+\textsf{colortbl} as spot
+                    & --- & ---  & Yes$^\ddagger$ & Yes \\
+\textsf{tcolorbox} as spot
+                    & --- & ---  & Yes$^\ddagger$ & Yes \\
+\hline
+DeviceN             & --- & ---  & Yes & --- \\
+\hline
+\multicolumn{5}{@{}p{\linewidth}@{}}{\hangingbox{$^\dagger$:\space}%
+\textsf{xespotcolor} defines custom PGF driver macros, but they are only activated when the user explicitly calls spot color commands, not through standard \textsf{xcolor} usage.
+}\\
+\multicolumn{5}{@{}p{\linewidth}@{}}{\hangingbox{$^\ddagger$:\space}%
+\textsf{colorspace} supports these through its \textsf{xcolor} integration, but only on \texttt{pdftex} and \texttt{luatex}.
+}
 \end{tabular}
 \end{center}
 
