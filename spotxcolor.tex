@@ -1,6 +1,7 @@
 %#!lualatex -synctex=1 spotxcolor
 \documentclass[luatex]{article}
 \usepackage{shortvrb}\AtBeginDocument{\MakeShortVerb{\|}}
+\usepackage{needspace}
 \usepackage{hyperref}
 \usepackage{xcolor}
 
@@ -276,6 +277,7 @@ Since spotxcolor's interception operates at the content stream operator level, i
 True spot color gradients would require generating Shading objects with \texttt{/ColorSpace [/Separation~...]} and tint-value function endpoints, which amounts to rewriting PGF's shading generation code entirely.
 % %TODO:% See the Technical Note (\texttt{spotxcolor-technote.pdf}, Section~X.Y) for a detailed structural comparison.
 
+\needspace{2\baselineskip}
 \subsection{Summary}
 
 \begin{center}
