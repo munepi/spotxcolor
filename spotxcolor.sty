@@ -160,8 +160,8 @@
 %%   - \xcolor@'s 2nd arg (raw field) is ignored by pdfTeX/LuaTeX drivers.
 %%
 %% Leave \color@<n> as standard CMYK (via \definecolor).
-%% The \set@color patch (installed at \AtBeginDocument) intercepts ALL color pushes, 
-%% detects spot color CMYK values, and converts them to spot color operators. 
+%% The \set@color patch (installed at \AtBeginDocument) intercepts ALL color pushes,
+%% detects spot color CMYK values, and converts them to spot color operators.
 %% This handles \color, \textcolor, \pagecolor, and tinted expressions uniformly across all engines.
 \cs_new_protected:Npn \spotxcolor_bind_xcolor:nnn #1#2#3
   {
@@ -207,12 +207,12 @@
 % =====================================================================
 % --- \set@color Patch for Spot Color Auto-Detection ---
 % =====================================================================
-% When xcolor evaluates tinted expressions like "DIC161s!50", 
+% When xcolor evaluates tinted expressions like "DIC161s!50",
 % it computes new CMYK values from the base color model, bypassing \color@<n>.
 % The resulting \current@color contains plain CMYK operators.
 %
-% This patch intercepts \set@color, parses the CMYK values from \current@color, 
-% and checks if they are a scalar multiple of any registered spot color's base CMYK values. 
+% This patch intercepts \set@color, parses the CMYK values from \current@color,
+% and checks if they are a scalar multiple of any registered spot color's base CMYK values.
 % If a match is found:
 %   - pdfTeX/LuaTeX: \current@color is replaced with spot color operators
 %   - dvipdfmx/XeTeX: \special{pdf:code} is emitted after the color push
@@ -407,8 +407,8 @@
 
 % --- Main interception: detect spot color in \current@color ---
 % If a registered spot color is detected, the matched flag is set,
-% \l_tmpb_tl contains the spot color operator string, and (for
-% pdfTeX/LuaTeX) \current@color is replaced in-place.
+% \l_tmpb_tl contains the spot color operator string,
+% and (for % pdfTeX/LuaTeX) \current@color is replaced in-place.
 % NOTE: All references to \current@color use c-type access because
 % @ is catcode 12 in expl3 but catcode 11 in these LaTeX internals.
 \cs_new_protected:Npn \__spotxcolor_intercept:
@@ -633,7 +633,7 @@
 % =====================================================================
 % --- PGF Driver Macro Patches for Spot Color ---
 % =====================================================================
-% PGF's low-level color macros (\pgfsys@color@cmyk@fill, etc.) bypass xcolor's \set@color entirely and emit CMYK operators directly via \pgfsysprotocol@literal. 
+% PGF's low-level color macros (\pgfsys@color@cmyk@fill, etc.) bypass xcolor's \set@color entirely and emit CMYK operators directly via \pgfsysprotocol@literal.
 % This means TikZ drawings using spot colors fall back to CMYK even though \set@color is patched.
 %
 % This patches the 4 PGF CMYK driver macros (defined in pgfsys-common-pdf.def, shared by ALL engines):
@@ -642,7 +642,7 @@
 %   \pgfsys@color@cmy@fill#1#2#3       → #1 #2 #3 0 k
 %   \pgfsys@color@cmy@stroke#1#2#3     → #1 #2 #3 0 K
 %
-% Each patched macro checks the CMYK values against registered spot colors. 
+% Each patched macro checks the CMYK values against registered spot colors.
 % If a match is found, spot color operators are emitted instead.
 % =====================================================================
 
@@ -849,23 +849,26 @@
 
 % =======================================================
 % --- PGF Pattern CMYK→Spot Patch ---
+% This section intentionally uses LaTeX2e syntax to match the PGF source code it patches.
 % Force PGF/TikZ uncolored patterns to use CMYK instead of hardcoded RGB.
 % After defining the CMYK baseline \pgfsys@setpatternuncolored,
-% this block also creates [/Pattern [/Separation ...]] color space objects for each registered spot color (step 5) and wraps \pgfsys@setpatternuncolored with spot color auto-detection.
+% this block also creates [/Pattern [/Separation ...]] color space objects
+% for each registered spot color (step 5) and wraps \pgfsys@setpatternuncolored
+% with spot color auto-detection.
 % =======================================================
 \makeatletter
 \AtBeginDocument{
   \@ifpackageloaded{pgfcore}{%
     % 1. Register CMYK Pattern Colorspace
     \pgfutil@addpdfresource@colorspaces{ /pgfpcmyk [/Pattern /DeviceCMYK] }%
-
+    %
     % 2. Define CMYK baseline of \pgfsys@setpatternuncolored
     %    (5 parameters: PatternName, C, M, Y, K)
     %    Step 5 below wraps this with spot color detection.
     \def\pgfsys@setpatternuncolored#1#2#3#4#5{%
       \pgfsysprotocol@literal{/pgfpcmyk cs #2 #3 #4 #5 /pgfpat#1\space scn}%
     }%
-
+    %
     % 3. Patch for legacy `patterns` library (pgfcorepatterns)
     \def\pgf@set@fillpattern#1#2{%
       \pgfutil@ifundefined{pgf@pattern@name@#1}{%
@@ -887,7 +890,7 @@
     \def\pgf@set@fill@patternuncolored#1,#2,#3,#4\relax#5{%
       \pgfsys@setpatternuncolored{\csname pgf@pattern@name@#5\endcsname}{#1}{#2}{#3}{#4}%
     }%
-
+    %
     % 4. Patch for modern `patterns.meta` library (pgflibrarypatterns.meta)
     \def\pgf@pat@setpatternuncolored#1#2{%
       \pgfutil@colorlet{pgf@tempcolor}{#2}%
@@ -900,7 +903,7 @@
       \pgfsys@setpatternuncolored{#5}{#1}{#2}{#3}{#4}%
     }%
     %
-    % 5. Create [/Pattern [/Separation ...]] objects for each registered spot color, 
+    % 5. Create [/Pattern [/Separation ...]] objects for each registered spot color,
     %    and wrap \pgfsys@setpatternuncolored with spot color detection.
     %    NOTE: The wrapper function is defined in ExplSyntax (above \ExplSyntaxOff) where _ and : have correct catcodes. We call it here via \csname to bridge the catcode boundary.
     \csname __spotxcolor_install_pattern_spot_patch:\endcsname
