@@ -8,7 +8,7 @@ This package provides robust spot color (e.g., DIC, PANTONE) support for the `xc
 
 ## Features
 
-- **Native `xcolor` Integration:** Use spot colors exactly like standard colors (`\textcolor{DIC161!50}{text}`, `\pagecolor{DIC161}`). All standard xcolor commands produce true PDF Separation color space operators on all engines.
+- **Native `xcolor` Integration:** Use spot colors exactly like standard colors (`\textcolor{DIC161s!50}{text}`, `\pagecolor{DIC161s}`). All standard xcolor commands produce true PDF Separation color space operators on all engines.
 - **Universal Engine Compatibility:** Fully supports `pdfLaTeX`, `LuaLaTeX`, `XeLaTeX`, and `(u)pLaTeX + dvipdfmx`.
 - **Advanced Graphics Support:** Works flawlessly with complex `TikZ` and `PGF` environments. The package patches PGF driver macros and pattern primitives to emit true spot color PDF operators, fully supporting:
   - Fill and stroke separation (independent spot color operators for fill/stroke).
@@ -19,7 +19,7 @@ This package provides robust spot color (e.g., DIC, PANTONE) support for the `xc
 ### Limitations
 
 - **Shadings (gradients):** PGF generates Shading dictionary objects with a hardcoded `/DeviceRGB` color space. The color values are frozen into the PDF object at creation time, so spotxcolor cannot intercept them.
-- **Non-proportional color mixes** (e.g., `DIC161!80!black`): These produce CMYK values that are not a simple scalar multiple of the base spot color, so they correctly fall back to CMYK.
+- **Non-proportional color mixes** (e.g., `DIC161s!80!black`): These produce CMYK values that are not a simple scalar multiple of the base spot color, so they correctly fall back to CMYK.
 
 See `spotxcolor.pdf` for a full feature/limitation summary table.
 
