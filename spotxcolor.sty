@@ -59,10 +59,13 @@
 % Used to create [/Pattern sepRef] objects.
 \prop_new:N \g__spotxcolor_sep_ref_prop
 
-% --- pdfmanagement detection ---
-% Detect whether pdfmanagement (l3pdf) is active.
-% When active, all resource registration must go through \pdfmanagement_add:nnn
-% instead of \pgfutil@addpdfresource@colorspaces or \pdfpageresources.
+% --- pdfmanagement detection (Issue #2) ---
+% When pdfmanagement (l3pdf) is active, it redefines
+% \pgfutil@addpdfresource@colorspaces with its own parser
+% (\__pdfmanagement_patch_pgfcolorspaces:w), which expects a different
+% argument format. Direct \pdfpageresources access is also forbidden.
+% We detect this at load time and route all resource registration through
+% \pdfmanagement_add:nnn instead.
 \bool_new:N \g__spotxcolor_pdfmanagement_bool
 \cs_if_exist:NTF \IfPDFManagementActiveTF
   {
@@ -81,11 +84,10 @@
 % --- Safe Resource Management Helper ---
 \cs_new_protected:Npn \spotxcolor_add_colorspace_resource:nn #1#2
   {
-    % v1.5: When pdfmanagement is active, use its API exclusively.
-    % pdfmanagement redefines \pgfutil@addpdfresource@colorspaces with
-    % \__pdfmanagement_patch_pgfcolorspaces:w which expects a different
-    % argument format. Bypassing it entirely avoids the Runaway argument
-    % error (Issue #2).
+    % When pdfmanagement is active, use its API exclusively.
+    % Bypassing \pgfutil@addpdfresource@colorspaces entirely avoids
+    % the Runaway argument error from
+    % \__pdfmanagement_patch_pgfcolorspaces:w (Issue #2).
     \bool_if:NTF \g__spotxcolor_pdfmanagement_bool
       {
         \pdfmanagement_add:nnn { Page/Resources/ColorSpace } {#1} {#2}
@@ -627,10 +629,10 @@
   }
 
 % --- Safe Bulk Expansion and Registration of Page Resources ---
-% This block handles resources accumulated in \g_spotxcolor_resource_tl
+% This handles resources accumulated in \g_spotxcolor_resource_tl
 % (used only when PGF is NOT loaded in traditional mode).
-% When pdfmanagement is active, resources are registered via
-% \pdfmanagement_add:nnn directly, so \g_spotxcolor_resource_tl is empty.
+% When pdfmanagement is active, resources are already registered
+% individually via \pdfmanagement_add:nnn, so this block is skipped.
 \AtBeginDocument
   {
     \bool_if:NF \g__spotxcolor_pdfmanagement_bool
@@ -825,8 +827,8 @@
 % =====================================================================
 
 % --- Helper: create Pattern CS objects for all registered spot colors ---
-% Refactored to use \spotxcolor_add_colorspace_resource:nn for
-% resource registration, which handles the pdfmanagement branch centrally.
+% Uses \spotxcolor_add_colorspace_resource:nn for resource
+% registration, which handles the pdfmanagement branch centrally.
 \cs_new_protected:Npn \__spotxcolor_create_pattern_cs:
   {
     \prop_map_inline:Nn \g__spotxcolor_sep_ref_prop
@@ -917,7 +919,7 @@
     % Use centralized helper (handles pdfmanagement branch).
     % Bridge catcode boundary via \csname since we are in makeatletter context.
     \csname spotxcolor_add_colorspace_resource:nn\endcsname{pgfpcmyk}{[/Pattern /DeviceCMYK]}%
-
+    %
     % 2. Define CMYK baseline of \pgfsys@setpatternuncolored
     %    (5 parameters: PatternName, C, M, Y, K)
     %    Step 5 below wraps this with spot color detection.
