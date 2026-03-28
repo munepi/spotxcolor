@@ -70,7 +70,14 @@
 \cs_if_exist:NTF \IfPDFManagementActiveTF
   {
     \IfPDFManagementActiveTF
-      { \bool_gset_true:N \g__spotxcolor_pdfmanagement_bool }
+      {
+        \bool_gset_true:N \g__spotxcolor_pdfmanagement_bool
+        % Generate nnx variant: the third argument (object reference)
+        % must be x-expanded at call time, because \pdfmanagement_add:nnn
+        % stores it lazily. Without expansion, all entries end up sharing
+        % the last value of \l_tmpb_tl.
+        \cs_generate_variant:Nn \pdfmanagement_add:nnn { nnx }
+      }
       { \bool_gset_false:N \g__spotxcolor_pdfmanagement_bool }
   }
   { \bool_gset_false:N \g__spotxcolor_pdfmanagement_bool }
@@ -90,7 +97,7 @@
     % \__pdfmanagement_patch_pgfcolorspaces:w (Issue #2).
     \bool_if:NTF \g__spotxcolor_pdfmanagement_bool
       {
-        \pdfmanagement_add:nnn { Page/Resources/ColorSpace } {#1} {#2}
+        \pdfmanagement_add:nnx { Page/Resources/ColorSpace } {#1} {#2}
       }
       {
         % Traditional mode: use PGF's hook or direct resource manipulation
