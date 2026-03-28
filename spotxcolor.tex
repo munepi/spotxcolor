@@ -18,6 +18,9 @@
 \definespotcolor{DIC256s}{DIC 256s*}{0.9, 0, 0.4, 0}  % Green
 \definespotcolor{DIC200s}{DIC 200s*}{0.5, 0.8, 0, 0}  % Purple
 
+% PANTONE Metallic Coated (true spot color — Lab→CMYK via ML model)
+\definespotcolor{PANTONE876C}{PANTONE 876 C}{0.4467, 0.7463, 0.9732, 0.0}
+
 \makeatletter\let\hangingbox\@hangfrom\makeatother
 \newcommand\pkg[1]{\textsf{#1}}
 \newcommand\cs[1]{\texttt{\textbackslash #1}}
@@ -25,7 +28,7 @@
 
 \title{\textsf{spotxcolor} Package}
 \author{Munehiro Yamamoto}
-\date{2026/03/17 v1.4}
+\date{2026/03/28 v1.5}
 
 \begin{document}
 \maketitle
@@ -78,6 +81,26 @@ Once registered, you can use standard \textsf{xcolor} commands:
 \textcolor{DIC161s}{This text is DIC 161.}
 \end{verbatim}
 \end{quote}
+
+\noindent PANTONE colors work the same way.
+
+\begin{quote}
+\begin{verbatim}
+% PANTONE Metallic Coated (true spot color)
+\definespotcolor{PANTONE876C}{PANTONE 876 C}{0.4467, 0.7463, 0.9732, 0}
+
+\textcolor{PANTONE876C}{This text is PANTONE 876 C (Metallic Gold).}
+\textcolor{PANTONE876C!50}{50% tint of PANTONE 876 C.}
+\end{verbatim}
+\end{quote}
+
+\noindent The PDF Separation array will contain |/PANTONE#20876#20C|, matching the encoding produced by Adobe Illustrator.
+
+\vspace{0.5em}
+\noindent Live example:
+\textcolor{PANTONE876C}{\textbf{PANTONE 876 C (100\%)}} \quad
+\textcolor{PANTONE876C!50}{\textbf{50\%}} \quad
+\textcolor{PANTONE876C!25}{\textbf{25\%}}
 
 \subsection{Dvipdfmx Explicit Spot Colors}
 All standard macros (|\color|, |\textcolor|, |\pagecolor|) produce true spot color output on \texttt{dvipdfmx}/\texttt{xetex} as well, via automatic \verb|\special{pdf:code}| injection.
@@ -191,6 +214,23 @@ If you need spot colors from other color books (e.g., PANTONE, TOYO, HKS), you c
 \item \textbf{\texttt{ase2def.rb}}: Extracts CMYK values from Adobe Swatch Exchange (\texttt{.ase}) files exported directly from Illustrator.
 \item \textbf{\texttt{acb2def.rb}}: Parses modern binary Adobe Color Book (\texttt{.acb}) files. Note that many \texttt{.acb} files store colors in the Lab color space. This script applies a 3rd-Degree Polynomial Regression Model (trained on native Adobe data) to predict highly accurate CMYK fallback values while minimizing K-channel muddiness. While extremely close to native values, it remains an approximation. For exact manufacturer values, use \texttt{acbl2def.rb} or \texttt{ase2def.rb}.
 \end{itemize}
+
+\subsection{A Note on PANTONE Color Families}
+
+Not all PANTONE color books produce true spot colors in PDF.
+When using \texttt{acb2def.rb} to generate PANTONE definitions, be aware of the distinction:
+
+\begin{description}
+\item[PANTONE Metallic Coated, PANTONE Solid Coated/Uncoated, etc.]
+These represent actual spot inks that require a dedicated printing plate.
+Adobe Illustrator creates a \texttt{/Separation} color space for these colors, and they appear as true spot colors in the output preview.
+\texttt{acb2def.rb} converts their Lab values to CMYK via the built-in ML model to produce accurate fallback colors for on-screen display.
+
+\item[PANTONE+ CMYK Coated / PANTONE+ CMYK Uncoated]
+These are \emph{process color} formulations---CMYK recipes designed to approximate PANTONE colors using only the four standard process inks.
+Adobe Illustrator writes them as plain CMYK operators (e.g., |1 0.94 0 0.5 k|) without creating \texttt{/Separation} entries.
+While \texttt{acb2def.rb} can generate \texttt{.def} files for these families, the resulting colors will function as process colors in practice.
+\end{description}
 
 \section{Backward Compatibility}
 
