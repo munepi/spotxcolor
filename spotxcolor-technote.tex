@@ -20,7 +20,7 @@
 
 \title{\textsf{spotxcolor} Technical Note}
 \author{Munehiro Yamamoto}
-\date{2026/03/29 v1.6}
+\date{2026/03/29 v1.7}
 
 \begin{document}
 \maketitle
@@ -455,7 +455,7 @@ Code style
 
 
 % =====================================================================
-\section{Compatibility with pdfmanagement (v1.6)}
+\section{Compatibility with pdfmanagement (v1.6+)}
 % =====================================================================
 
 \subsection{The Resource Registration Conflict}
@@ -477,14 +477,14 @@ DIC161 \l_tmpb_tl \space 0 R\q_stop ...
 
 Similarly, direct |\pdfpageresources| access (the fallback path when PGF is not loaded) is explicitly forbidden when pdfmanagement is active.
 
-\subsection{The v1.6 Solution: Centralized Resource Dispatch}
+\subsection{Centralized Resource Dispatch}
 
-v1.6 introduces a boolean flag |\g__spotxcolor_pdfmanagement_bool|, detected at package load time by checking the internal boolean |\g__pdfmanagement_active_bool| directly (not via |\IfPDFManagementActiveTF|, which can trigger side effects), and rewires the centralized resource helper |\spotxcolor_add_colorspace_resource:nn|:
+A boolean flag |\g__spotxcolor_pdfmanagement_bool| is detected at package load time via |\IfPDFManagementActiveTF|, and rewires the centralized resource helper |\spotxcolor_add_colorspace_resource:nn|:
 
 \begin{quote}
 \begin{verbatim}
 \bool_if:NTF \g__spotxcolor_pdfmanagement_bool
-  { \pdfmanagement_add:nnx
+  { \pdfmanagement_add:nne
       { Page/Resources/ColorSpace } {#1} {#2} }
   { % traditional path:
     %   \pgfutil@addpdfresource@colorspaces
@@ -493,7 +493,7 @@ v1.6 introduces a boolean flag |\g__spotxcolor_pdfmanagement_bool|, detected at 
 \end{verbatim}
 \end{quote}
 
-Note the use of the |nnx| variant (not |nnn|): the third argument (object reference, e.g., |42 0 R|) must be x-expanded at call time.
+Note the use of the |nne| variant (not |nnn|): the third argument (object reference, e.g., |42 0 R|) must be e-expanded at call time.
 The |nnn| variant stores the unexpanded token list, and since |\spotxcolor_add_colorspace_resource:nn| is called multiple times (once per |\definespotcolor|), the last call's object reference overwrites earlier ones---causing all spot colors to share a single Separation CS.
 
 This completely bypasses the pdfmanagement-patched |\pgfutil@addpdfresource@colorspaces|, eliminating the argument format mismatch.
