@@ -17,9 +17,11 @@
 # Exit:   0 = all PASS, 1 = any FAIL
 
 set -eu
+export LANG=C
 
+# ── grep with PCRE support (macOS: use ggrep from homebrew) ──
 __grep=grep
-if which ggrep; then
+if which ggrep >/dev/null 2>&1; then
     __grep=ggrep
 fi
 
@@ -51,19 +53,27 @@ for QDF in "$@"; do
     # ── Test 1: No QPDFFake entries ──────────────────────────
     # qpdf emits /QPDFFake<N> when a dictionary key Name contains
     # illegal bytes (e.g. bare space).  Presence = proof of breakage.
-    if LANG=C ${__grep} -qa 'QPDFFake' "$QDF"; then
-        n=$(LANG=C ${__grep} -ca 'QPDFFake' "$QDF")
+    if ${__grep} -qa 'QPDFFake' "$QDF"; then
+        n=$(${__grep} -ca 'QPDFFake' "$QDF")
         fail "QPDFFake entries found ($n) — qpdf could not parse PDF Names"
     else
         pass "No QPDFFake entries"
     fi
 
-    # ── Test 2: Separation array names are #20-escaped ───────
-    # Correct:  [/Separation /DIC#20161s* /DeviceCMYK ...]
-    # Broken:   [/Separation /DIC 161s*   /DeviceCMYK ...]
-    #           (space splits the Name into two tokens)
-    if LANG=C ${__grep} -qa '/Separation' "$QDF"; then
-        if LANG=C ${__grep} -aqP '/Separation\s+/\S*#20' "$QDF"; then
+    # ── Test 2: Separation array Names are #20-escaped ───────
+    # In QDF format, elements may be on separate lines:
+    #   /Separation
+    #   /DIC#20161s*           ← Name (next line after /Separation)
+    #   /DeviceCMYK
+    # Or on one line:
+    #   /Separation /DIC#20161s* /DeviceCMYK
+    #
+    # Strategy: extract the line(s) immediately following /Separation
+    # and check whether any Name there contains #20.
+    if ${__grep} -qa '/Separation' "$QDF"; then
+        # Get 1 line of context after /Separation — captures the Name
+        sep_context=$(${__grep} -aA1 '/Separation' "$QDF")
+        if printf '%s\n' "$sep_context" | ${__grep} -qP '#20'; then
             pass "Separation array Name(s) contain #20 escaping"
         else
             fail "Separation array Name(s) lack #20 escaping"
@@ -72,27 +82,29 @@ for QDF in "$@"; do
         pass "No Separation arrays (not applicable)"
     fi
 
-    # ── Test 3: No bare spaces in cs/CS color-space operators ─
-    # Content stream:  /DIC161s cs  (OK — xcolor name has no space)
-    #                  /PANTONE 485 C cs  (BROKEN — bare space in Name)
-    if LANG=C ${__grep} -aqP '/\w+ \w+.* [cC][sS]\b' "$QDF"; then
-        fail "Bare spaces in cs/CS operator Name(s)"
-    else
-        pass "No bare spaces in cs/CS operator Names"
-    fi
-
-    # ── Test 4: ColorSpace dict keys have no bare spaces ─────
-    # /ColorSpace << /DIC161s 14 0 R >>        (OK)
-    # /ColorSpace << /PANTONE 485 ... >>        (BROKEN → QPDFFake)
-    if LANG=C ${__grep} -aqP '/ColorSpace\b' "$QDF"; then
-        if LANG=C ${__grep} -aA 20 '/ColorSpace <<' "$QDF" \
-             | LANG=C ${__grep} -qP '^\s+/\w+ \w' 2>/dev/null; then
-            fail "ColorSpace dict key(s) contain bare spaces"
+    # ── Test 3: No bare-space Names in content stream operators ─
+    # Content streams are between "stream" and "endstream" lines.
+    # A broken Name in a cs/CS operator looks like:
+    #   /DIC 161s* cs /DIC 161s* CS 1 sc 1 SC
+    # Check: extract content streams, look for lines with both
+    # a bare-space slash-Name and a cs/CS/sc/SC operator.
+    stream_data=$(sed -n '/^stream$/,/^endstream$/p' "$QDF" 2>/dev/null || true)
+    if [ -n "$stream_data" ]; then
+        if printf '%s\n' "$stream_data" \
+             | ${__grep} -qP '/\S+\s+\S+.*\s[cC][sS]\s' 2>/dev/null; then
+            # Double-check it's not just "/Name cs /Name CS" (which is valid)
+            # A broken Name has space INSIDE: /WORD WORD ... cs
+            if printf '%s\n' "$stream_data" \
+                 | ${__grep} -qP '/[A-Za-z]+\s+[A-Za-z0-9]+\S*\s+[cC][sS]\s' 2>/dev/null; then
+                fail "Bare-space Name(s) in content stream cs/CS operators"
+            else
+                pass "Content stream cs/CS operators are clean"
+            fi
         else
-            pass "ColorSpace dict keys are clean"
+            pass "Content stream cs/CS operators are clean"
         fi
     else
-        pass "No ColorSpace dict (not applicable)"
+        pass "No content streams (not applicable)"
     fi
 
     echo "--- $BASENAME: $file_pass passed, $file_fail failed ---"
