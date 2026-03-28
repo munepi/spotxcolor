@@ -20,7 +20,7 @@
 
 \title{\textsf{spotxcolor} Technical Note}
 \author{Munehiro Yamamoto}
-\date{2026/03/18 v1.5}
+\date{2026/03/29 v1.6}
 
 \begin{document}
 \maketitle
@@ -325,77 +325,6 @@ For |\pagecolor|, |\special{background cmyk ...}| generates a separate backgroun
 \pkg{spotxcolor} uses the |shipout/background| hook to emit a spot-colored full-page rectangle in the main content stream, which paints over the CMYK background.
 
 
-% =====================================================================
-\section{Compatibility with pdfmanagement (v1.5)}
-% =====================================================================
-
-\subsection{The Resource Registration Conflict}
-
-When pdfmanagement (|\DocumentMetadata{}|) is active, it takes exclusive control of all PDF page resources.
-It redefines PGF's |\pgfutil@addpdfresource@colorspaces| with its own parser (|\__pdfmanagement_patch_pgfcolorspaces:w|), which scans for a |\q_stop| delimiter in a specific argument format.
-
-\pkg{spotxcolor} passed arguments like |/DIC161s \l_tmpb_tl \space 0 R| where |\l_tmpb_tl| was an already-expanded object number.
-This token list did not contain the delimiter expected by the pdfmanagement parser, causing a ``Runaway argument'' error:
-
-\begin{quote}
-\begin{verbatim}
-Runaway argument?
-DIC161 \l_tmpb_tl \space 0 R\q_stop ...
-! File ended while scanning use of
-  \__pdfmanagement_patch_pgfcolorspaces:w.
-\end{verbatim}
-\end{quote}
-
-Similarly, direct |\pdfpageresources| access (the fallback path when PGF is not loaded) is explicitly forbidden when pdfmanagement is active.
-
-\subsection{The v1.5 Solution: Centralized Resource Dispatch}
-
-v1.5 introduces a boolean flag |\g__spotxcolor_pdfmanagement_bool|, detected at package load time via |\IfPDFManagementActiveTF|, and rewires the centralized resource helper |\spotxcolor_add_colorspace_resource:nn|:
-
-\begin{quote}
-\begin{verbatim}
-\bool_if:NTF \g__spotxcolor_pdfmanagement_bool
-  { \pdfmanagement_add:nnn
-      { Page/Resources/ColorSpace } {#1} {#2} }
-  { % traditional path:
-    %   \pgfutil@addpdfresource@colorspaces
-    %   or \pdfpageresources / \special{pdf:put}
-  }
-\end{verbatim}
-\end{quote}
-
-This completely bypasses the pdfmanagement-patched |\pgfutil@addpdfresource@colorspaces|, eliminating the argument format mismatch.
-
-The path format |Page/Resources/ColorSpace| (no spaces around slashes) is confirmed from \texttt{colorspace-patches-tmp-ltx.sty} in the \TeX\ Live distribution, which uses |\pdfmanagement_add:nee {Page/Resources/ColorSpace}| for the same purpose.
-
-\subsection{Affected Code Paths}
-
-Four code paths were updated to use centralized dispatch:
-
-\begin{enumerate}
-\item \textbf{Separation CS registration} (|\spotxcolor_create_pdf_obj:nnn|):
-    Called at |\definespotcolor| time.
-    Each spot color's |/NAME objRef| entry is registered via |\spotxcolor_add_colorspace_resource:nn|, which now branches internally.
-
-\item \textbf{Bulk resource fallback} (|\AtBeginDocument|, |\g_spotxcolor_resource_tl|):
-    When PGF is not loaded in traditional mode, accumulated resources are injected via |\pdfpageresources|.
-    This block is now guarded by |\bool_if:NF \g__spotxcolor_pdfmanagement_bool|.
-    (When pdfmanagement is active, resources were already registered individually via path~1.)
-
-\item \textbf{Pattern CS creation} (|\__spotxcolor_create_pattern_cs:|):
-    Creates |[/Pattern [/Separation ...]]| objects and registers them as |/pgfpspot_NAME|.
-    Previously called |\pgfutil@addpdfresource@colorspaces| directly; now uses the centralized helper with |\exp_args:NnV| to safely pass expanded object references.
-
-\item \textbf{CMYK Pattern CS} (|\AtBeginDocument|, |/pgfpcmyk|):
-    The |/pgfpcmyk [/Pattern /DeviceCMYK]| registration previously used |\pgfutil@addpdfresource@colorspaces|; now uses |\csname spotxcolor_add_colorspace_resource:nn\endcsname| to bridge the catcode boundary from |\makeatletter| context.
-\end{enumerate}
-
-\subsection{Interaction with PGF's Own pdfmanagement Awareness}
-
-Recent PGF versions (3.1.10+) include their own pdfmanagement patches, which also rewrite |\pgfutil@addpdfresource@colorspaces|.
-Because \pkg{spotxcolor} completely bypasses |\pgfutil@addpdfresource@colorspaces| when pdfmanagement is active, there is no risk of double-patching or argument format conflicts between \pkg{spotxcolor} and PGF's pdfmanagement layer.
-
-
 \section{Comparison of Implementation Approaches}
 
 This section compares the internal architecture of the four spot color packages.
@@ -523,6 +452,89 @@ Code style
 \hline
 \end{tabular}
 \end{center}
+
+
+% =====================================================================
+\section{Compatibility with pdfmanagement (v1.6)}
+% =====================================================================
+
+\subsection{The Resource Registration Conflict}
+
+When pdfmanagement (|\DocumentMetadata{}|) is active, it takes exclusive control of all PDF page resources.
+It redefines PGF's |\pgfutil@addpdfresource@colorspaces| with its own parser (|\__pdfmanagement_patch_pgfcolorspaces:w|), which scans for a |\q_stop| delimiter in a specific argument format.
+
+\pkg{spotxcolor} passed arguments like |/DIC161s \l_tmpb_tl \space 0 R| where |\l_tmpb_tl| was an already-expanded object number.
+This token list did not contain the delimiter expected by the pdfmanagement parser, causing a ``Runaway argument'' error:
+
+\begin{quote}
+\begin{verbatim}
+Runaway argument?
+DIC161 \l_tmpb_tl \space 0 R\q_stop ...
+! File ended while scanning use of
+  \__pdfmanagement_patch_pgfcolorspaces:w.
+\end{verbatim}
+\end{quote}
+
+Similarly, direct |\pdfpageresources| access (the fallback path when PGF is not loaded) is explicitly forbidden when pdfmanagement is active.
+
+\subsection{The v1.6 Solution: Centralized Resource Dispatch}
+
+v1.6 introduces a boolean flag |\g__spotxcolor_pdfmanagement_bool|, detected at package load time by checking the internal boolean |\g__pdfmanagement_active_bool| directly (not via |\IfPDFManagementActiveTF|, which can trigger side effects), and rewires the centralized resource helper |\spotxcolor_add_colorspace_resource:nn|:
+
+\begin{quote}
+\begin{verbatim}
+\bool_if:NTF \g__spotxcolor_pdfmanagement_bool
+  { \pdfmanagement_add:nnx
+      { Page/Resources/ColorSpace } {#1} {#2} }
+  { % traditional path:
+    %   \pgfutil@addpdfresource@colorspaces
+    %   or \pdfpageresources / \special{pdf:put}
+  }
+\end{verbatim}
+\end{quote}
+
+Note the use of the |nnx| variant (not |nnn|): the third argument (object reference, e.g., |42 0 R|) must be x-expanded at call time.
+The |nnn| variant stores the unexpanded token list, and since |\spotxcolor_add_colorspace_resource:nn| is called multiple times (once per |\definespotcolor|), the last call's object reference overwrites earlier ones---causing all spot colors to share a single Separation CS.
+
+This completely bypasses the pdfmanagement-patched |\pgfutil@addpdfresource@colorspaces|, eliminating the argument format mismatch.
+
+The path format |Page/Resources/ColorSpace| (no spaces around slashes) is confirmed from \texttt{colorspace-patches-tmp-ltx.sty} in the \TeX\ Live distribution, which uses |\pdfmanagement_add:nee {Page/Resources/ColorSpace}| for the same purpose.
+
+\subsection{Affected Code Paths}
+
+Four code paths were updated to use centralized dispatch:
+
+\begin{enumerate}
+\item \textbf{Separation CS registration} (|\spotxcolor_create_pdf_obj:nnn|):
+    Called at |\definespotcolor| time.
+    Each spot color's |/NAME objRef| entry is registered via |\spotxcolor_add_colorspace_resource:nn|, which now branches internally.
+
+\item \textbf{Bulk resource fallback} (|\AtBeginDocument|, |\g_spotxcolor_resource_tl|):
+    When PGF is not loaded in traditional mode, accumulated resources are injected via |\pdfpageresources|.
+    This block is now guarded by |\bool_if:NF \g__spotxcolor_pdfmanagement_bool|.
+    (When pdfmanagement is active, resources were already registered individually via path~1.)
+
+\item \textbf{Pattern CS creation} (|\__spotxcolor_create_pattern_cs:|):
+    Creates |[/Pattern [/Separation ...]]| objects and registers them as |/pgfpspot_NAME|.
+    Previously called |\pgfutil@addpdfresource@colorspaces| directly; now uses the centralized helper with |\exp_args:NnV| to safely pass expanded object references.
+
+\item \textbf{CMYK Pattern CS} (|\AtBeginDocument|, |/pgfpcmyk|):
+    The |/pgfpcmyk [/Pattern /DeviceCMYK]| registration previously used |\pgfutil@addpdfresource@colorspaces|; now uses |\csname spotxcolor_add_colorspace_resource:nn\endcsname| to bridge the catcode boundary from |\makeatletter| context.
+\end{enumerate}
+
+\subsection{Interaction with PGF's Own pdfmanagement Awareness}
+
+Recent PGF versions (3.1.10+) include their own pdfmanagement patches, which also rewrite |\pgfutil@addpdfresource@colorspaces|.
+Because \pkg{spotxcolor} completely bypasses |\pgfutil@addpdfresource@colorspaces| when pdfmanagement is active, there is no risk of double-patching or argument format conflicts between \pkg{spotxcolor} and PGF's pdfmanagement layer.
+
+\subsection{Note on l3color}
+
+\pkg{spotxcolor} registers spot colors via \pkg{xcolor}'s |\definecolor{...}{cmyk}{...}|.
+The \textsf{expl3} color system (\textsf{l3color}) maintains a separate color database and does not automatically import \pkg{xcolor} definitions, so |\color_select:n{DIC161s}| will fail with ``Unknown color''.
+
+This is not a limitation of \pkg{spotxcolor} but a consequence of the current \pkg{xcolor}--\textsf{l3color} boundary:
+\pkg{xcolor} does not yet provide a bridge to register its colors in the \textsf{l3color} database.
+Package developers building on \pkg{spotxcolor} should use the standard \pkg{xcolor} interface (|\color|, |\textcolor|, etc.)\ rather than \textsf{l3color} commands.
 
 
 \end{document}

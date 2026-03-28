@@ -1,6 +1,6 @@
 %#!./run.bash test.tex
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage {spotxcolor} {2026-03-28} {1.5} {Modern Spot Color Support for xcolor}
+\ProvidesExplPackage {spotxcolor} {2026-03-29} {1.6} {Modern Spot Color Support for xcolor}
 
 %%
 %% Copyright (c) 2026 Munehiro Yamamoto <munepixyz@gmail.com>
@@ -65,11 +65,17 @@
 % (\__pdfmanagement_patch_pgfcolorspaces:w), which expects a different
 % argument format. Direct \pdfpageresources access is also forbidden.
 % We detect this at load time and route all resource registration through
-% \pdfmanagement_add:nnn instead.
+% \pdfmanagement_add:nnx instead.
+%
+% NOTE: We check the internal boolean \g__pdfmanagement_active_bool directly
+% rather than calling \IfPDFManagementActiveTF, because the latter is always
+% defined in the LaTeX kernel (as \@secondoftwo) and calling it at package
+% load time can trigger l3pdf module initialization as a side effect,
+% interfering with the l3color-xcolor bridge (\color_select:n fails).
 \bool_new:N \g__spotxcolor_pdfmanagement_bool
-\cs_if_exist:NTF \IfPDFManagementActiveTF
+\cs_if_exist:NTF \g__pdfmanagement_active_bool
   {
-    \IfPDFManagementActiveTF
+    \bool_if:NTF \g__pdfmanagement_active_bool
       {
         \bool_gset_true:N \g__spotxcolor_pdfmanagement_bool
         % Generate nnx variant: the third argument (object reference)
@@ -78,9 +84,9 @@
         % the last value of \l_tmpb_tl.
         \cs_generate_variant:Nn \pdfmanagement_add:nnn { nnx }
       }
-      { \bool_gset_false:N \g__spotxcolor_pdfmanagement_bool }
+      { }
   }
-  { \bool_gset_false:N \g__spotxcolor_pdfmanagement_bool }
+  { }
 
 % --- Database Registration ---
 \cs_new_protected:Npn \spotxcolor_register_db:nnn #1#2#3
@@ -100,7 +106,7 @@
         \pdfmanagement_add:nnx { Page/Resources/ColorSpace } {#1} {#2}
       }
       {
-        % Traditional mode: use PGF's hook or direct resource manipulation
+        % Traditional mode: use PGF's hook or direct resource manipulation.
 
         % Avoid collision with pgfcolorspaces.
         % Instead of putting it directly into @resources << /ColorSpace ... >>,
