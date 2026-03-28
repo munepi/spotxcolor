@@ -12,6 +12,9 @@
 \definespotcolor{DIC256s}{DIC 256s*}{0.9, 0, 0.4, 0}   % Green
 \definespotcolor{DIC200s}{DIC 200s*}{0.5, 0.8, 0, 0}   % Purple
 
+% PANTONE Metallic Coated (true spot color — Lab→CMYK via ML model)
+\definespotcolor{PANTONE876C}{PANTONE 876 C}{0.4467, 0.7463, 0.9732, 0.0}
+
 % \NewSpotColorSpace{DIC}
 % \AddSpotColor{DIC}{DIC161s}{DIC\SpotSpace 161s*}{0 0.64 1 0}
 % \SetPageColorSpace{DIC}
@@ -320,6 +323,56 @@ This is an example of \textbf{tcolorbox} seamlessly integrating with the \textsf
   \item Even the drop shadow is rendered using a \textcolor{DIC161s!30}{30\% DIC161} tint!
 \end{itemize}
 \end{tcolorbox}
+
+\clearpage
+
+% ==========================================
+\section{PANTONE Spot Color Test}
+
+% v1.5: Test PANTONE Metallic Coated (true spot color)
+% PDF Name "PANTONE 876 C" must appear as /PANTONE#20876#20C in QDF
+\subsection*{PANTONE 876 C (Metallic Gold)}
+
+\textcolor{PANTONE876C}{PANTONE 876 C at 100\% tint.}
+
+\textcolor{PANTONE876C!50}{PANTONE 876 C at 50\% tint.}
+
+\textcolor{PANTONE876C!25}{PANTONE 876 C at 25\% tint.}
+
+{\color{PANTONE876C}\rule{\linewidth}{4pt}}
+\vskip2pt
+{\color{PANTONE876C!50}\rule{\linewidth}{4pt}}
+\vskip2pt
+{\color{PANTONE876C!25}\rule{\linewidth}{4pt}}
+
+\onelineskip
+
+% Tint series
+\noindent
+{\color{PANTONE876C!10}\rule{0.1\linewidth}{10pt}}%
+{\color{PANTONE876C!20}\rule{0.1\linewidth}{10pt}}%
+{\color{PANTONE876C!30}\rule{0.1\linewidth}{10pt}}%
+{\color{PANTONE876C!40}\rule{0.1\linewidth}{10pt}}%
+{\color{PANTONE876C!50}\rule{0.1\linewidth}{10pt}}%
+{\color{PANTONE876C!60}\rule{0.1\linewidth}{10pt}}%
+{\color{PANTONE876C!70}\rule{0.1\linewidth}{10pt}}%
+{\color{PANTONE876C!80}\rule{0.1\linewidth}{10pt}}%
+{\color{PANTONE876C!90}\rule{0.1\linewidth}{10pt}}%
+{\color{PANTONE876C}\rule{0.1\linewidth}{10pt}}
+
+\onelineskip
+
+\subsection*{TikZ with PANTONE Metallic}
+
+\begin{tikzpicture}
+  % DIC + PANTONE coexistence
+  \fill[PANTONE876C] (0,0) rectangle (3,2)
+    node[pos=0.5, white, font=\sffamily\small] {PANTONE 876 C};
+  \fill[DIC161s] (3.5,0) rectangle (6.5,2)
+    node[pos=0.5, white, font=\sffamily\small] {DIC 161s*};
+  \fill[PANTONE876C!40] (7,0) rectangle (10,2)
+    node[pos=0.5, font=\sffamily\small] {876 C (40\%)};
+\end{tikzpicture}
 
 \clearpage
 

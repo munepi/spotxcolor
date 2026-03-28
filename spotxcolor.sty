@@ -1,6 +1,6 @@
 %#!./run.bash test.tex
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage {spotxcolor} {2026-03-18} {1.5} {Modern Spot Color Support for xcolor}
+\ProvidesExplPackage {spotxcolor} {2026-03-28} {1.5} {Modern Spot Color Support for xcolor}
 
 %%
 %% Copyright (c) 2026 Munehiro Yamamoto <munepixyz@gmail.com>
@@ -22,6 +22,9 @@
 \tl_new:N \l_spotxcolor_pdfname_tl
 \tl_const:Nx \c_spotxcolor_hash_str { \string # }
 \tl_new:N \g_spotxcolor_resource_tl
+
+% NnV variant for PDF Name escaping
+\cs_generate_variant:Nn \tl_replace_all:Nnn { NnV }
 
 % --- Variables for \set@color patch (spot color auto-detection) ---
 % Base CMYK values for each spot color: name -> "c m y k" (space-separated)
@@ -52,7 +55,8 @@
 
 % --- Separation object reference per spot color ---
 % Maps xcolor name -> Separation array reference (e.g., "6 0 R" for pdfTeX,
-% "@spot_space_NAME" for dvipdfmx). Used to create [/Pattern sepRef] objects.
+% "@spot_space_NAME" for dvipdfmx).
+% Used to create [/Pattern sepRef] objects.
 \prop_new:N \g__spotxcolor_sep_ref_prop
 
 % --- pdfmanagement detection ---
@@ -117,9 +121,15 @@
 % --- PDF Object Generation ---
 \cs_new_protected:Npn \spotxcolor_create_pdf_obj:nnn #1#2#3
   {
-    % Replace spaces in PDF name (#2) with #20
+    % Escape spaces in PDF name (#2) as #20 per ISO 32000-1, §7.3.5
     \tl_set:Nn \l_spotxcolor_pdfname_tl { #2 }
-    \tl_replace_all:Nnx \l_spotxcolor_pdfname_tl { ~ } { \c_spotxcolor_hash_str 20 }
+    % Build "#20" at runtime: step 1 = x-expand hash alone (no digit after #),
+    % step 2 = append "20" via n-type (no \edef).
+    % This avoids the TeX issue where \edef treats '#' (even catcode 12)
+    % followed by a digit specially.
+    \tl_set:Nx \l_tmpa_tl { \c_spotxcolor_hash_str }		% → "#"
+    \tl_put_right:Nn \l_tmpa_tl { 20 }						% → "#20"
+    \tl_replace_all:NnV \l_spotxcolor_pdfname_tl { ~ } \l_tmpa_tl
 
     \legacy_if:nTF { pdf }
       {
@@ -186,8 +196,8 @@
 %%   - \xcolor@'s 2nd arg (raw field) is ignored by pdfTeX/LuaTeX drivers.
 %%
 %% Leave \color@<n> as standard CMYK (via \definecolor).
-%% The \set@color patch (installed at \AtBeginDocument) intercepts ALL color pushes, 
-%% detects spot color CMYK values, and converts them to spot color operators. 
+%% The \set@color patch (installed at \AtBeginDocument) intercepts ALL color pushes,
+%% detects spot color CMYK values, and converts them to spot color operators.
 %% This handles \color, \textcolor, \pagecolor, and tinted expressions uniformly across all engines.
 \cs_new_protected:Npn \spotxcolor_bind_xcolor:nnn #1#2#3
   {
@@ -233,18 +243,20 @@
 % =====================================================================
 % --- \set@color Patch for Spot Color Auto-Detection ---
 % =====================================================================
-% When xcolor evaluates tinted expressions like "DIC161s!50", 
+% When xcolor evaluates tinted expressions like "DIC161s!50",
 % it computes new CMYK values from the base color model, bypassing \color@<n>.
 % The resulting \current@color contains plain CMYK operators.
 %
-% This patch intercepts \set@color, parses the CMYK values from \current@color, 
-% and checks if they are a scalar multiple of any registered spot color's base CMYK values. 
+% This patch intercepts \set@color, parses the CMYK values from \current@color,
+% and checks if they are a scalar multiple of any registered spot color's base CMYK values.
 % If a match is found:
+%
 %   - pdfTeX/LuaTeX: \current@color is replaced with spot color operators
 %   - dvipdfmx/XeTeX: \special{pdf:code} is emitted after the color push
 %
 % Note: Only proportional tints (DIC161s!N) are auto-detected.
-% Complex mixes like "DIC161s!50!black" produce non-proportional CMYK and correctly fall back to CMYK representation.
+%       Complex mixes like "DIC161s!50!black" produce non-proportional CMYK
+%       and correctly fall back to CMYK representation.
 % =====================================================================
 
 % --- Parse pdfTeX/LuaTeX format: "c m y k k c m y k K" ---
@@ -433,10 +445,11 @@
 
 % --- Main interception: detect spot color in \current@color ---
 % If a registered spot color is detected, the matched flag is set,
-% \l_tmpb_tl contains the spot color operator string, and (for
-% pdfTeX/LuaTeX) \current@color is replaced in-place.
-% NOTE: All references to \current@color use c-type access because
-% @ is catcode 12 in expl3 but catcode 11 in these LaTeX internals.
+% \l_tmpb_tl contains the spot color operator string,
+% and (for % pdfTeX/LuaTeX) \current@color is replaced in-place.
+% NOTE: All references to \current@color use c-type access
+%       because @ is catcode 12 in expl3 but catcode 11
+%       in these LaTeX internals.
 \cs_new_protected:Npn \__spotxcolor_intercept:
   {
     \bool_gset_false:N \g__spotxcolor_matched_bool
@@ -564,8 +577,8 @@
 % a reverse-CTM translation so the fill uses absolute PDF coordinates:
 %   q 1 0 0 1 -TX -TY cm /NAME cs TINT sc 0 0 W H re f Q
 %
-% This overdraws the CMYK background from \special{background}, giving
-% the correct spot color appearance while keeping CMYK as a fallback.
+% This overdraws the CMYK background from \special{background},
+% giving the correct spot color appearance while keeping CMYK as a fallback.
 % =====================================================================
 
 % --- Helper: emit the page background special ---
@@ -666,16 +679,18 @@
 % =====================================================================
 % --- PGF Driver Macro Patches for Spot Color ---
 % =====================================================================
-% PGF's low-level color macros (\pgfsys@color@cmyk@fill, etc.) bypass xcolor's \set@color entirely and emit CMYK operators directly via \pgfsysprotocol@literal. 
+% PGF's low-level color macros (\pgfsys@color@cmyk@fill, etc.) bypass xcolor's \set@color entirely
+% and emit CMYK operators directly via \pgfsysprotocol@literal.
 % This means TikZ drawings using spot colors fall back to CMYK even though \set@color is patched.
 %
 % This patches the 4 PGF CMYK driver macros (defined in pgfsys-common-pdf.def, shared by ALL engines):
-%   \pgfsys@color@cmyk@fill#1#2#3#4    → #1 #2 #3 #4 k
-%   \pgfsys@color@cmyk@stroke#1#2#3#4  → #1 #2 #3 #4 K
-%   \pgfsys@color@cmy@fill#1#2#3       → #1 #2 #3 0 k
-%   \pgfsys@color@cmy@stroke#1#2#3     → #1 #2 #3 0 K
 %
-% Each patched macro checks the CMYK values against registered spot colors. 
+%   - \pgfsys@color@cmyk@fill#1#2#3#4    → #1 #2 #3 #4 k
+%   - \pgfsys@color@cmyk@stroke#1#2#3#4  → #1 #2 #3 #4 K
+%   - \pgfsys@color@cmy@fill#1#2#3       → #1 #2 #3 0 k
+%   - \pgfsys@color@cmy@stroke#1#2#3     → #1 #2 #3 0 K
+%
+% Each patched macro checks the CMYK values against registered spot colors.
 % If a match is found, spot color operators are emitted instead.
 % =====================================================================
 
@@ -803,8 +818,10 @@
 % For spot colors, we need [/Pattern [/Separation ...]] as the color
 % space, with operands: TINT /pgfpatN scn
 %
-% This section creates [/Pattern sepRef] objects for each registered spot color and registers them as /pgfpspot_NAME in page resources.
-% Then \pgfsys@setpatternuncolored is patched to use spot color pattern CS when the CMYK values match a registered spot color.
+% This section creates [/Pattern sepRef] objects for each registered spot color
+% and registers them as /pgfpspot_NAME in page resources.
+% Then \pgfsys@setpatternuncolored is patched to use spot color pattern CS
+% when the CMYK values match a registered spot color.
 % =====================================================================
 
 % --- Helper: create Pattern CS objects for all registered spot colors ---
@@ -944,7 +961,8 @@
     %
     % 5. Create [/Pattern [/Separation ...]] objects for each registered spot color,
     %    and wrap \pgfsys@setpatternuncolored with spot color detection.
-    %    NOTE: The wrapper function is defined in ExplSyntax (above \ExplSyntaxOff) where _ and : have correct catcodes. We call it here via \csname to bridge the catcode boundary.
+    %    NOTE: The wrapper function is defined in ExplSyntax (above \ExplSyntaxOff)
+    %          where _ and : have correct catcodes. We call it here via \csname to bridge the catcode boundary.
     \csname __spotxcolor_install_pattern_spot_patch:\endcsname
   }\relax
 }
