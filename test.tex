@@ -9,6 +9,8 @@
 
 \usepackage{spotxcolor}
 \definespotcolor{DIC161s}{DIC 161s*}{0, 0.64, 1, 0}
+\definespotcolor{DIC256s}{DIC 256s*}{0.9, 0, 0.4, 0}   % Green
+\definespotcolor{DIC200s}{DIC 200s*}{0.5, 0.8, 0, 0}   % Purple
 
 % \NewSpotColorSpace{DIC}
 % \AddSpotColor{DIC}{DIC161s}{DIC\SpotSpace 161s*}{0 0.64 1 0}
@@ -339,5 +341,244 @@ Testing \verb|\resetpagecolorspace|...
 \onelineskip
 
 If the document compiles successfully and this page renders without errors, the backward compatibility wrappers are working perfectly.
+
+\clearpage
+
+% ==========================================
+\section{Multiple Spot Color Tests}
+% ==========================================
+% v1.5: Three distinct spot colors used simultaneously.
+% Verify that each color registers its own Separation CS, Pattern CS,
+% and resource dictionary entries without collision.
+
+\subsection*{Three Spot Colors: Basic}
+
+\textcolor{DIC161s}{DIC 161s (Vermilion) --- 100\%}\par
+\textcolor{DIC256s}{DIC 256s (Green) --- 100\%}\par
+\textcolor{DIC200s}{DIC 200s (Purple) --- 100\%}
+
+\onelineskip
+
+\textcolor{DIC161s!50}{DIC 161s --- 50\%}\par
+\textcolor{DIC256s!50}{DIC 256s --- 50\%}\par
+\textcolor{DIC200s!50}{DIC 200s --- 50\%}
+
+\onelineskip
+
+\subsection*{Three Spot Colors: TikZ Fill and Stroke}
+
+\begin{tikzpicture}
+  % Vermilion circle
+  \fill[DIC161s] (0,0) circle (1.2);
+  \fill[DIC161s!30] (0,-1.8) rectangle (2.4,1.8);
+  \fill[DIC161s] (0,0) circle (1.2);
+
+  % Green rectangle
+  \draw[DIC256s, ultra thick, fill=DIC256s!20, rounded corners]
+    (3,-1.2) rectangle (6,1.2);
+  \node[DIC256s] at (4.5,0) {\textsf{DIC 256s}};
+
+  % Purple diamond
+  \fill[DIC200s!60] (8.5,0) -- (9.5,1.2) -- (10.5,0) -- (9.5,-1.2) -- cycle;
+  \draw[DIC200s, ultra thick] (8.5,0) -- (9.5,1.2) -- (10.5,0) -- (9.5,-1.2) -- cycle;
+  \node[white, font=\sffamily\small] at (9.5,0) {DIC 200s};
+\end{tikzpicture}
+
+\onelineskip
+
+\subsection*{Three Spot Colors: Multiply Blend Mode}
+
+\begin{tikzpicture}
+  \fill[gray!10] (-1.5,-2) rectangle (4.5,3);
+  \begin{scope}[blend mode=multiply]
+    \fill[DIC161s] (90:1) circle (1.3);
+    \fill[DIC256s] (210:1) circle (1.3);
+    \fill[DIC200s] (330:1) circle (1.3);
+  \end{scope}
+  \node[font=\sffamily\small] at (1.5, 2.8) {Multiply: DIC161s + DIC256s + DIC200s};
+\end{tikzpicture}
+
+\onelineskip
+
+\subsection*{Three Spot Colors: Pattern Fills}
+
+\begin{tikzpicture}
+  % DIC161s pattern
+  \draw[DIC161s, ultra thick,
+    pattern={Lines[angle=45, distance=6pt, line width=1.5pt]},
+    pattern color=DIC161s!60]
+    (0,0) rectangle (3, 2)
+    node[pos=0.5, fill=white, inner sep=2pt, font=\sffamily\small, text=DIC161s] {161s Lines};
+
+  % DIC256s pattern
+  \draw[DIC256s, ultra thick,
+    pattern={Lines[angle=-45, distance=6pt, line width=1.5pt]},
+    pattern color=DIC256s!60]
+    (4,0) rectangle (7, 2)
+    node[pos=0.5, fill=white, inner sep=2pt, font=\sffamily\small, text=DIC256s] {256s Lines};
+
+  % DIC200s dots
+  \draw[DIC200s, ultra thick,
+    pattern={Dots[distance=3mm, radius=1mm]},
+    pattern color=DIC200s!50]
+    (8,0) rectangle (11, 2)
+    node[pos=0.5, fill=white, inner sep=2pt, font=\sffamily\small, text=DIC200s] {200s Dots};
+\end{tikzpicture}
+
+\onelineskip
+
+\subsection*{Three Spot Colors: Zebra-striped Table}
+
+\rowcolors{2}{DIC256s!8}{white}
+\begin{center}
+  \renewcommand{\arraystretch}{1.5}
+  \begin{tabular}{p{3cm} p{5cm} c}
+    \rowcolor{DIC200s}
+    \textcolor{white}{\textbf{Color}} & \textcolor{white}{\textbf{PDF Name}} & \textcolor{white}{\textbf{Base CMYK}} \\
+    \textcolor{DIC161s}{DIC 161s}  & DIC 161s* (Vermilion) & (0, 0.64, 1, 0) \\
+    \textcolor{DIC256s}{DIC 256s}  & DIC 256s* (Green)     & (0.9, 0, 0.4, 0) \\
+    \textcolor{DIC200s}{DIC 200s}  & DIC 200s* (Purple)    & (0.5, 0.8, 0, 0) \\
+  \end{tabular}
+\end{center}
+
+\onelineskip
+
+\subsection*{Three Spot Colors: tcolorbox}
+
+\begin{tcolorbox}[
+  enhanced,
+  colframe=DIC256s,
+  colback=DIC256s!5,
+  coltitle=white,
+  colbacktitle=DIC256s!80,
+  fonttitle=\sffamily\bfseries\Large,
+  title={Three-Color Harmony},
+  drop fuzzy shadow=DIC256s!30
+]
+This box frame uses \textcolor{DIC256s}{\textbf{DIC 256s}} (Green).
+
+Inside, we can mix all three spot colors freely:
+\textcolor{DIC161s}{\textbf{Vermilion (DIC 161s)}},
+\textcolor{DIC256s}{\textbf{Green (DIC 256s)}}, and
+\textcolor{DIC200s}{\textbf{Purple (DIC 200s)}}.
+
+\onelineskip
+
+Tints also work for each:
+\textcolor{DIC161s!50}{161s @ 50\%},
+\textcolor{DIC256s!50}{256s @ 50\%},
+\textcolor{DIC200s!50}{200s @ 50\%}.
+\end{tcolorbox}
+
+\clearpage
+
+% ==========================================
+\section{l3color Interface Tests}
+% ==========================================
+% v1.5: Test coexistence with expl3's \color_select:n.
+% spotxcolor registers colors via \definecolor{}{cmyk}{} which creates
+% standard xcolor entries. The expl3 color system can reference these
+% through its own interface. This section verifies that no conflicts arise.
+
+\subsection*{\texttt{\textbackslash color\_select:n} with Spot Colors}
+
+The following text is set via \verb|\ExplSyntaxOn ... \color_select:n{DIC161s}|:
+\onelineskip
+
+\begingroup
+\ExplSyntaxOn
+\color_select:n{DIC161s}
+This~text~should~appear~in~DIC~161s~(Vermilion).
+\ExplSyntaxOff
+\endgroup
+
+\onelineskip
+
+\begingroup
+\ExplSyntaxOn
+\color_select:n{DIC256s}
+This~text~should~appear~in~DIC~256s~(Green).
+\ExplSyntaxOff
+\endgroup
+
+\onelineskip
+
+\begingroup
+\ExplSyntaxOn
+\color_select:n{DIC200s}
+This~text~should~appear~in~DIC~200s~(Purple).
+\ExplSyntaxOff
+\endgroup
+
+\onelineskip
+
+\subsection*{Tinted \texttt{\textbackslash color\_select:n}}
+
+\begingroup
+\ExplSyntaxOn
+\color_select:n{DIC161s!50}
+This~text~should~appear~in~DIC~161s~at~50\%~tint.
+\ExplSyntaxOff
+\endgroup
+
+\onelineskip
+
+\subsection*{Mixed: l3color + xcolor in Same Scope}
+
+\begingroup
+% Set via l3color
+\ExplSyntaxOn
+\color_select:n{DIC200s}
+\ExplSyntaxOff
+Purple (via l3color).
+\endgroup
+\quad
+\begingroup
+% Set via xcolor
+\color{DIC200s}
+Purple (via xcolor).
+\endgroup
+\quad
+Both lines should match.
+
+\clearpage
+
+% ==========================================
+\section{pdfmanagement Compatibility Test}
+% ==========================================
+% v1.5: This section tests basic compilation when pdfmanagement is NOT active.
+% The actual pdfmanagement interaction test requires \DocumentMetadata{} before
+% \documentclass, which makes it a separate test file (test-pdfmanagement.tex).
+%
+% Here we verify that spotxcolor's resource management works correctly in the
+% traditional (non-pdfmanagement) mode, i.e., via \pgfutil@addpdfresource@colorspaces
+% and direct \pdfpageresources manipulation.
+
+\subsection*{Resource Registration Verification}
+
+This page verifies that all three spot color resources are registered correctly
+in the traditional (non-pdfmanagement) mode:
+
+\begin{itemize}
+  \item \textcolor{DIC161s}{\textbf{DIC161s}}: Separation CS + Pattern CS registered
+  \item \textcolor{DIC256s}{\textbf{DIC256s}}: Separation CS + Pattern CS registered
+  \item \textcolor{DIC200s}{\textbf{DIC200s}}: Separation CS + Pattern CS registered
+\end{itemize}
+
+\onelineskip
+
+To confirm correct PDF structure, inspect the compiled PDF with a tool such as
+\texttt{qpdf --json} or Adobe Preflight. Each page should contain
+\texttt{/ColorSpace} entries for all three spot colors.
+
+\onelineskip
+
+\subsection*{Note on pdfmanagement Testing}
+
+A dedicated test file \texttt{test-pdfmanagement.tex} should be used to test the
+\verb|\DocumentMetadata{}| pathway (Issue \#2). That file places
+\verb|\DocumentMetadata{}| \emph{before} \verb|\documentclass| and exercises the
+same spot color commands to verify that \textsf{spotxcolor} correctly switches to
+the \verb|\pdfmanagement_add:nnn| API when pdfmanagement is active.
 
 \end{document}
