@@ -1,13 +1,5 @@
 SPOTXVER := $(shell awk -F'[{}]' '/ProvidesExplPackage/ {print $$6}' spotxcolor.sty)
 
-# 最終的に生成したい QDF ファイルのリスト
-QDF_TARGETS := test-pdftex_$(SPOTXVER).qdf \
-               test-luatex_$(SPOTXVER).qdf \
-               test-xetex_$(SPOTXVER).qdf \
-               test-ptex2pdf_$(SPOTXVER).qdf \
-               test-colorspace-pdftex.qdf \
-               test-colorspace-luatex.qdf
-
 .PHONY: ctanzip
 ctanzip: spotxcolor.zip ## Archive for CTAN upload
 spotxcolor.zip: clean spotxcolor.pdf
@@ -30,15 +22,14 @@ clean: ## Clean this repository
 	rm -f *.qdf test-ptex2pdf* test-colorspace* test_version
 	find . -type f -name "*~" -delete
 
-# spotxcolor の QDF だけ (colorspace 比較用は除外)
 SPOTX_QDFS := test-pdftex_$(SPOTXVER).qdf \
               test-luatex_$(SPOTXVER).qdf \
               test-xetex_$(SPOTXVER).qdf \
               test-ptex2pdf_$(SPOTXVER).qdf
 
 .PHONY: test
-test: test_version $(QDF_TARGETS) ## Run test + PDF compliance checks
-	@tar -cf - $(QDF_TARGETS) | gzip -9 >test_`date +%Y%m%d%H%M`.tar.gz
+test: test_version $(SPOTX_QDFS) ## Run test + PDF compliance checks
+	@tar -cf - $(SPOTX_QDFS) | gzip -9 >test_`date +%Y%m%d%H%M`.tar.gz
 	@echo "========================================"
 	@echo " PDF compliance tests  (v$(SPOTXVER))"
 	@echo "========================================"
@@ -71,14 +62,22 @@ test-xetex.pdf: test.tex test_version spotxcolor.sty
 test-ptex2pdf.pdf: test-ptex2pdf.tex test_version spotxcolor.sty
 	ptex2pdf -l -u $<
 
-test-colorspace-pdftex.pdf: test-colorspace.tex
-	pdflatex -jobname=test-colorspace-pdftex -interaction=nonstopmode -file-line-error -halt-on-error $< || true
-
-test-colorspace-luatex.pdf: test-colorspace.tex
-	lualatex -jobname=test-colorspace-luatex -interaction=nonstopmode -file-line-error -halt-on-error $< || true
-
 %_$(SPOTXVER).qdf: %.pdf
 	qpdf --qdf $< $@
+
+
+
+COLORSP_QDFS := test-colorspace-pdftex.qdf \
+                test-colorspace-luatex.qdf
+
+.PHONY: test-colorspace
+test-colorspace: $(COLORSP_QDFS)
+
+test-colorspace-pdftex.pdf: test-colorspace.tex
+	pdflatex -jobname=test-colorspace-pdftex $< || true
+
+test-colorspace-luatex.pdf: test-colorspace.tex
+	lualatex -jobname=test-colorspace-luatex $< || true
 
 test-colorspace-%.qdf: test-colorspace-%.pdf
 	qpdf --qdf $< $@
