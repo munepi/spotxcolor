@@ -1,6 +1,6 @@
 %#!./run.bash test.tex
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage {spotxcolor} {2026-03-28} {1.5} {Modern Spot Color Support for xcolor}
+\ProvidesExplPackage {spotxcolor} {2026-03-29} {1.6} {Modern Spot Color Support for xcolor}
 
 %%
 %% Copyright (c) 2026 Munehiro Yamamoto <munepixyz@gmail.com>
@@ -59,6 +59,35 @@
 % Used to create [/Pattern sepRef] objects.
 \prop_new:N \g__spotxcolor_sep_ref_prop
 
+% --- pdfmanagement detection (Issue #2) ---
+% When pdfmanagement (l3pdf) is active, it redefines
+% \pgfutil@addpdfresource@colorspaces with its own parser
+% (\__pdfmanagement_patch_pgfcolorspaces:w), which expects a different
+% argument format. Direct \pdfpageresources access is also forbidden.
+% We detect this at load time and route all resource registration through
+% \pdfmanagement_add:nnx instead.
+%
+% NOTE: We check the internal boolean \g__pdfmanagement_active_bool directly
+% rather than calling \IfPDFManagementActiveTF, because the latter is always
+% defined in the LaTeX kernel (as \@secondoftwo) and calling it at package
+% load time can trigger l3pdf module initialization as a side effect,
+% interfering with the l3color-xcolor bridge (\color_select:n fails).
+\bool_new:N \g__spotxcolor_pdfmanagement_bool
+\cs_if_exist:NTF \g__pdfmanagement_active_bool
+  {
+    \bool_if:NTF \g__pdfmanagement_active_bool
+      {
+        \bool_gset_true:N \g__spotxcolor_pdfmanagement_bool
+        % Generate nnx variant: the third argument (object reference)
+        % must be x-expanded at call time, because \pdfmanagement_add:nnn
+        % stores it lazily. Without expansion, all entries end up sharing
+        % the last value of \l_tmpb_tl.
+        \cs_generate_variant:Nn \pdfmanagement_add:nnn { nnx }
+      }
+      { }
+  }
+  { }
+
 % --- Database Registration ---
 \cs_new_protected:Npn \spotxcolor_register_db:nnn #1#2#3
   {
@@ -68,26 +97,38 @@
 % --- Safe Resource Management Helper ---
 \cs_new_protected:Npn \spotxcolor_add_colorspace_resource:nn #1#2
   {
-    % Avoid collision with pgfcolorspaces.
-    % Instead of putting it directly into @resources << /ColorSpace ... >>,
-    % we use a generic pdf:put command that dvipdfmx handles more gracefully
-    % for merging dictionaries.
-
-    % Check if TikZ/PGF is loaded and use its official hook to avoid dictionary overwrites
-    \cs_if_exist:NTF \pgfutil@addpdfresource@colorspaces
+    % When pdfmanagement is active, use its API exclusively.
+    % Bypassing \pgfutil@addpdfresource@colorspaces entirely avoids
+    % the Runaway argument error from
+    % \__pdfmanagement_patch_pgfcolorspaces:w (Issue #2).
+    \bool_if:NTF \g__spotxcolor_pdfmanagement_bool
       {
-        % If TikZ/PGF is loaded, inject into its dictionary
-        \pgfutil@addpdfresource@colorspaces { /#1~#2 }
+        \pdfmanagement_add:nnx { Page/Resources/ColorSpace } {#1} {#2}
       }
       {
-        % Fallback if PGF is NOT loaded
-        \legacy_if:nTF { pdf }
+        % Traditional mode: use PGF's hook or direct resource manipulation.
+
+        % Avoid collision with pgfcolorspaces.
+        % Instead of putting it directly into @resources << /ColorSpace ... >>,
+        % we use a generic pdf:put command that dvipdfmx handles more gracefully
+        % for merging dictionaries.
+
+        % Check if TikZ/PGF is loaded and use its official hook to avoid dictionary overwrites
+        \cs_if_exist:NTF \pgfutil@addpdfresource@colorspaces
           {
-            \tl_gput_right:Nx \g_spotxcolor_resource_tl { /#1 \space #2 \space }
+            % If TikZ/PGF is loaded, inject into its dictionary
+            \pgfutil@addpdfresource@colorspaces { /#1~#2 }
           }
           {
-            % use the standard approach
-            \special { pdf:put~@resources~<<~/ColorSpace~<<~/#1~#2~>>~>> }
+            % Fallback if PGF is NOT loaded
+            \legacy_if:nTF { pdf }
+              {
+                \tl_gput_right:Nx \g_spotxcolor_resource_tl { /#1 \space #2 \space }
+              }
+              {
+                % use the standard approach
+                \special { pdf:put~@resources~<<~/ColorSpace~<<~/#1~#2~>>~>> }
+              }
           }
       }
   }
@@ -601,25 +642,32 @@
   }
 
 % --- Safe Bulk Expansion and Registration of Page Resources ---
+% This handles resources accumulated in \g_spotxcolor_resource_tl
+% (used only when PGF is NOT loaded in traditional mode).
+% When pdfmanagement is active, resources are already registered
+% individually via \pdfmanagement_add:nnn, so this block is skipped.
 \AtBeginDocument
   {
-    \legacy_if:nTF { pdf }
+    \bool_if:NF \g__spotxcolor_pdfmanagement_bool
       {
-        \tl_if_empty:NF \g_spotxcolor_resource_tl
+        \legacy_if:nTF { pdf }
           {
-            \sys_if_engine_pdftex:T
+            \tl_if_empty:NF \g_spotxcolor_resource_tl
               {
-                \edef \spotxcolor_temp_tl { \the\pdfpageresources \space /ColorSpace << \g_spotxcolor_resource_tl >> }
-                \pdfpageresources = \exp_after:wN { \spotxcolor_temp_tl }
-              }
-            \sys_if_engine_luatex:T
-              {
-                \edef \spotxcolor_temp_tl { \the\pdfvariable~pageresources \space /ColorSpace << \g_spotxcolor_resource_tl >> }
-                \pdfvariable~pageresources = \exp_after:wN { \spotxcolor_temp_tl }
+                \sys_if_engine_pdftex:T
+                  {
+                    \edef \spotxcolor_temp_tl { \the\pdfpageresources \space /ColorSpace << \g_spotxcolor_resource_tl >> }
+                    \pdfpageresources = \exp_after:wN { \spotxcolor_temp_tl }
+                  }
+                \sys_if_engine_luatex:T
+                  {
+                    \edef \spotxcolor_temp_tl { \the\pdfvariable~pageresources \space /ColorSpace << \g_spotxcolor_resource_tl >> }
+                    \pdfvariable~pageresources = \exp_after:wN { \spotxcolor_temp_tl }
+                  }
               }
           }
+          {}
       }
-      {}
   }
 
 % =======================================================
@@ -792,6 +840,8 @@
 % =====================================================================
 
 % --- Helper: create Pattern CS objects for all registered spot colors ---
+% Uses \spotxcolor_add_colorspace_resource:nn for resource
+% registration, which handles the pdfmanagement branch centrally.
 \cs_new_protected:Npn \__spotxcolor_create_pattern_cs:
   {
     \prop_map_inline:Nn \g__spotxcolor_sep_ref_prop
@@ -802,21 +852,23 @@
             \sys_if_engine_pdftex:T
               {
                 \immediate \pdfobj { [/Pattern~ ##2 ] }
-                \use:c { pgfutil@addpdfresource@colorspaces }
-                  { /pgfpspot_ ##1 ~ \the\pdflastobj \space 0~R }
+                \tl_set:Nx \l_tmpa_tl { \the\pdflastobj \space 0~R }
+                \exp_args:NnV \spotxcolor_add_colorspace_resource:nn
+                  { pgfpspot_ ##1 } \l_tmpa_tl
               }
             \sys_if_engine_luatex:T
               {
                 \immediate \pdfextension obj { [/Pattern~ ##2 ] }
-                \use:c { pgfutil@addpdfresource@colorspaces }
-                  { /pgfpspot_ ##1 ~ \pdffeedback lastobj \space 0~R }
+                \tl_set:Nx \l_tmpa_tl { \pdffeedback lastobj \space 0~R }
+                \exp_args:NnV \spotxcolor_add_colorspace_resource:nn
+                  { pgfpspot_ ##1 } \l_tmpa_tl
               }
           }
           {
             % dvipdfmx / XeTeX: use named references
             \special { pdf:obj~@pgfpspot_ ##1 ~[/Pattern~ ##2 ] }
-            \use:c { pgfutil@addpdfresource@colorspaces }
-              { /pgfpspot_ ##1 ~ @pgfpspot_ ##1 }
+            \spotxcolor_add_colorspace_resource:nn
+              { pgfpspot_ ##1 } { @pgfpspot_ ##1 }
           }
       }
   }
@@ -877,7 +929,9 @@
 \AtBeginDocument{
   \@ifpackageloaded{pgfcore}{%
     % 1. Register CMYK Pattern Colorspace
-    \pgfutil@addpdfresource@colorspaces{ /pgfpcmyk [/Pattern /DeviceCMYK] }%
+    % Use centralized helper (handles pdfmanagement branch).
+    % Bridge catcode boundary via \csname since we are in makeatletter context.
+    \csname spotxcolor_add_colorspace_resource:nn\endcsname{pgfpcmyk}{[/Pattern /DeviceCMYK]}%
     %
     % 2. Define CMYK baseline of \pgfsys@setpatternuncolored
     %    (5 parameters: PatternName, C, M, Y, K)

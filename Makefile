@@ -5,7 +5,8 @@ ctanzip: spotxcolor.zip ## Archive for CTAN upload
 spotxcolor.zip: clean spotxcolor.pdf
 	git archive --format=tar --prefix=spotxcolor/ HEAD | gtar -x
 	## remove unpacked files
-	rm -f spotxcolor/.gitignore spotxcolor/Makefile
+	cd spotxcolor/ && \
+		rm -f .gitignore Makefile pdfname_escape.sh spotxcolor-technote.tex
 	## then, now just make archive
 	zip -9 -r spotxcolor.zip spotxcolor/*
 	rm -rf spotxcolor
@@ -19,7 +20,8 @@ spotxcolor.pdf: spotxcolor.tex
 clean: ## Clean this repository
 	rm -rf spotxcolor.zip spotxcolor
 	rm -f *.aux *.log *.out *.toc
-	rm -f *.qdf test-ptex2pdf* test-colorspace* test_version
+	rm -f test-*.qdf test-*.pdf test_version
+	rm -f test_*.tar.gz test-pdfmgmt_*.tar.gz
 	find . -type f -name "*~" -delete
 
 SPOTX_QDFS := test-pdftex_$(SPOTXVER).qdf \
@@ -80,4 +82,29 @@ test-colorspace-luatex.pdf: test-colorspace.tex
 	lualatex -jobname=test-colorspace-luatex $< || true
 
 test-colorspace-%.qdf: test-colorspace-%.pdf
+	qpdf --qdf $< $@
+
+
+# =====================================================================
+# pdfmanagement compatibility test (Issue #2)
+# \DocumentMetadata{} only works with pdflatex and lualatex.
+# =====================================================================
+PDFMGMT_QDFS := test-pdfmanagement-pdftex_$(SPOTXVER).qdf \
+                test-pdfmanagement-luatex_$(SPOTXVER).qdf
+
+.PHONY: test-pdfmanagement
+test-pdfmanagement: $(PDFMGMT_QDFS) ## Test pdfmanagement compatibility (Issue #2)
+	@echo "========================================"
+	@echo " pdfmanagement tests  (v$(SPOTXVER))"
+	@echo "========================================"
+	@tar -cf - $(PDFMGMT_QDFS) | gzip -9 >test-pdfmgmt_`date +%Y%m%d%H%M`.tar.gz
+	@echo "All pdfmanagement tests compiled successfully."
+
+test-pdfmanagement-pdftex.pdf: test-pdfmanagement.tex spotxcolor.sty
+	pdflatex -jobname=test-pdfmanagement-pdftex $<
+
+test-pdfmanagement-luatex.pdf: test-pdfmanagement.tex spotxcolor.sty
+	lualatex -jobname=test-pdfmanagement-luatex $<
+
+test-pdfmanagement-%_$(SPOTXVER).qdf: test-pdfmanagement-%.pdf
 	qpdf --qdf $< $@

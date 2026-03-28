@@ -28,7 +28,7 @@
 
 \title{\textsf{spotxcolor} Package}
 \author{Munehiro Yamamoto}
-\date{2026/03/28 v1.5}
+\date{2026/03/29 v1.6}
 
 \begin{document}
 \maketitle
@@ -268,6 +268,59 @@ Why?
 Because \textsf{spotxcolor} utilizes robust, modern techniques (like hooking into PGF's resource management API) to inject color spaces globally and safely.
 Attempting to manually manipulate the \texttt{/ColorSpace} dictionary on a per-page basis is dangerous in modern \LaTeX\ and can easily corrupt the PDF structure.
 By neutralizing these legacy commands, \textsf{spotxcolor} guarantees that older documents will compile perfectly and safely without any structural PDF errors.
+
+
+\section{Compatibility with pdfmanagement (l3pdf)}
+
+\subsection{Background}
+
+Modern \LaTeX\ (since 2020) provides an optional PDF resource management layer called \emph{pdfmanagement},
+activated by placing |\DocumentMetadata{}| before |\documentclass|.
+When pdfmanagement is active, it takes exclusive control of all PDF page resources---including the \texttt{/ColorSpace} dictionary---and direct access via |\pdfpageresources| or |\special{pdf:put}| is forbidden.
+
+Furthermore, pdfmanagement redefines PGF's |\pgfutil@addpdfresource@colorspaces| with its own parser (|\__pdfmanagement_patch_pgfcolorspaces:w|), which expects a different argument format.
+Passing the raw object references that \textsf{spotxcolor} produces (e.g., |42 0 R|) through this rewritten macro causes a ``Runaway argument'' error.
+
+\subsection{Automatic Detection and Dispatch}
+
+\textsf{spotxcolor} detects pdfmanagement at load time by checking the internal boolean |\g__pdfmanagement_active_bool| and automatically switches its resource registration strategy:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\begin{tabular}{ll}
+\hline
+\textbf{Mode} & \textbf{Resource Registration} \\
+\hline
+Traditional (no pdfmanagement) & |\pgfutil@addpdfresource@colorspaces| \\
+                               & or |\pdfpageresources| / |\special{pdf:put}| \\
+\hline
+pdfmanagement active & |\pdfmanagement_add:nnx| \\
+                     & |{Page/Resources/ColorSpace}| \\
+\hline
+\end{tabular}
+\end{center}
+
+\noindent This switch is transparent to the user.
+All existing |\definespotcolor|, |\color|, |\textcolor|, |\pagecolor|, and \textsf{TikZ} commands work identically in both modes.
+
+\subsection{Usage}
+
+To use \textsf{spotxcolor} with pdfmanagement, simply add |\DocumentMetadata{}| as the very first line of your document:
+
+\begin{quote}
+\begin{verbatim}
+\DocumentMetadata{}       % activates pdfmanagement
+\documentclass{article}
+\usepackage{spotxcolor}
+\definespotcolor{DIC161s}{DIC 161s*}{0, 0.64, 1, 0}
+\begin{document}
+\textcolor{DIC161s}{Spot color text}
+\end{document}
+\end{verbatim}
+\end{quote}
+
+\noindent No additional options or workarounds are required.
+
 
 \section{Limitations}
 
