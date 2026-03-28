@@ -37,16 +37,13 @@ SPOTX_QDFS := test-pdftex_$(SPOTXVER).qdf \
               test-ptex2pdf_$(SPOTXVER).qdf
 
 .PHONY: test
-test: test_version $(QDF_TARGETS) ## Run test natively in Makefile
-	grep -h '^spotxcolor.sty' *.log || true
-	@echo "Finished tests for version: $(SPOTXVER)"
-
-.PHONY: check
-check: test ## Run test + PDF compliance checks
+test: test_version $(QDF_TARGETS) ## Run test + PDF compliance checks
+	@tar -cf - $(QDF_TARGETS) | gzip -9 >test_`date +%Y%m%d%H%M`.tar.gz
 	@echo "========================================"
-	@echo " PDF compliance checks  (v$(SPOTXVER))"
+	@echo " PDF compliance tests  (v$(SPOTXVER))"
 	@echo "========================================"
 	@sh pdfname_escape.sh $(SPOTX_QDFS)
+	@echo "Finished tests for version: $(SPOTXVER)"
 
 test_version: spotxcolor.sty
 	awk -F'[{}]' '/ProvidesExplPackage/ {gsub(/-/, "/", $$4); print "Testing:", $$2, $$4, "v"$$6}' $< > $@
@@ -75,10 +72,10 @@ test-ptex2pdf.pdf: test-ptex2pdf.tex test_version spotxcolor.sty
 	ptex2pdf -l -u $<
 
 test-colorspace-pdftex.pdf: test-colorspace.tex
-	pdflatex -jobname=test-colorspace-pdftex $< || true
+	pdflatex -jobname=test-colorspace-pdftex -interaction=nonstopmode -file-line-error -halt-on-error $< || true
 
 test-colorspace-luatex.pdf: test-colorspace.tex
-	lualatex -jobname=test-colorspace-luatex $< || true
+	lualatex -jobname=test-colorspace-luatex -interaction=nonstopmode -file-line-error -halt-on-error $< || true
 
 %_$(SPOTXVER).qdf: %.pdf
 	qpdf --qdf $< $@
