@@ -19,7 +19,7 @@
 set -eu
 
 __grep=grep
-if which ggrep; then
+if which ggrep >/dev/null ; then
     __grep=ggrep
 fi
 
@@ -72,13 +72,17 @@ for QDF in "$@"; do
         pass "No Separation arrays (not applicable)"
     fi
 
-    # ── Test 3: No bare spaces in cs/CS color-space operators ─
-    # Content stream:  /DIC161s cs  (OK — xcolor name has no space)
-    #                  /PANTONE 485 C cs  (BROKEN — bare space in Name)
-    if LANG=C ${__grep} -aqP '/\w+ \w+.* [cC][sS]\b' "$QDF"; then
-        fail "Bare spaces in cs/CS operator Name(s)"
+    # ── Test 3: No un-escaped spot color Names in content streams ─
+    # Broken PDF Names split at spaces:
+    #   /DIC 161s* cs    → PDF parser sees /DIC then 161s* then cs
+    #   /PANTONE 485 C   → PDF parser sees /PANTONE then 485 then C
+    # Pattern: /UpperWord<space><digit> is the hallmark of a broken
+    # multi-part spot color Name (DIC 161, PANTONE 485, TOYO 0226).
+    # Clean Names like /DIC161s have no space before the digit run.
+    if LANG=C ${__grep} -aqP '/[A-Z][A-Za-z]+\s+[0-9]' "$QDF"; then
+        fail "Un-escaped spot color Name(s) found (space before digit)"
     else
-        pass "No bare spaces in cs/CS operator Names"
+        pass "No un-escaped spot color Names"
     fi
 
     # ── Test 4: ColorSpace dict keys have no bare spaces ─────
