@@ -8,7 +8,7 @@ spotxcolor.zip: clean $(DOCS)
 	git archive --format=tar --prefix=spotxcolor/ HEAD | gtar -x
 	## remove unpacked files
 	cd spotxcolor/ && \
-		rm -f .gitignore Makefile pdfname_escape.sh
+		rm -f .gitignore Makefile pdfname_escape.sh separation_name.sh
 	## then, now just make archive
 	zip -9 -r spotxcolor.zip spotxcolor/*
 	rm -rf spotxcolor
@@ -43,6 +43,7 @@ test: test_version $(SPOTX_QDFS) ## Run test + PDF compliance checks
 	@echo " PDF compliance tests  (v$(SPOTXVER))"
 	@echo "========================================"
 	@sh pdfname_escape.sh $(SPOTX_QDFS)
+	@sh separation_name.sh $(SPOTX_QDFS)
 	@echo "Finished tests for version: $(SPOTXVER)"
 
 test_version: spotxcolor.sty
