@@ -28,7 +28,7 @@
 
 \title{\textsf{spotxcolor} Package}
 \author{Munehiro Yamamoto}
-\date{2026/03/29 v1.6}
+\date{2026/03/29 v1.7}
 
 \begin{document}
 \maketitle
@@ -283,7 +283,7 @@ Passing the raw object references that \textsf{spotxcolor} produces (e.g., |42 0
 
 \subsection{Automatic Detection and Dispatch}
 
-\textsf{spotxcolor} detects pdfmanagement at load time by checking the internal boolean |\g__pdfmanagement_active_bool| and automatically switches its resource registration strategy:
+\textsf{spotxcolor} detects pdfmanagement at load time using |\IfPDFManagementActiveTF| and automatically switches its resource registration strategy:
 
 \begin{center}
 \renewcommand{\arraystretch}{1.3}
@@ -294,7 +294,7 @@ Passing the raw object references that \textsf{spotxcolor} produces (e.g., |42 0
 Traditional (no pdfmanagement) & |\pgfutil@addpdfresource@colorspaces| \\
                                & or |\pdfpageresources| / |\special{pdf:put}| \\
 \hline
-pdfmanagement active & |\pdfmanagement_add:nnx| \\
+pdfmanagement active & |\pdfmanagement_add:nne| \\
                      & |{Page/Resources/ColorSpace}| \\
 \hline
 \end{tabular}

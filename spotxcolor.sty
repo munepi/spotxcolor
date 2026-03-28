@@ -1,6 +1,6 @@
 %#!./run.bash test.tex
 \NeedsTeXFormat{LaTeX2e}
-\ProvidesExplPackage {spotxcolor} {2026-03-29} {1.6} {Modern Spot Color Support for xcolor}
+\ProvidesExplPackage {spotxcolor} {2026-03-29} {1.7} {Modern Spot Color Support for xcolor}
 
 %%
 %% Copyright (c) 2026 Munehiro Yamamoto <munepixyz@gmail.com>
@@ -65,26 +65,16 @@
 % (\__pdfmanagement_patch_pgfcolorspaces:w), which expects a different
 % argument format. Direct \pdfpageresources access is also forbidden.
 % We detect this at load time and route all resource registration through
-% \pdfmanagement_add:nnx instead.
-%
-% NOTE: We check the internal boolean \g__pdfmanagement_active_bool directly
-% rather than calling \IfPDFManagementActiveTF, because the latter is always
-% defined in the LaTeX kernel (as \@secondoftwo) and calling it at package
-% load time can trigger l3pdf module initialization as a side effect,
-% interfering with the l3color-xcolor bridge (\color_select:n fails).
+% \pdfmanagement_add:nne instead.
 \bool_new:N \g__spotxcolor_pdfmanagement_bool
-\cs_if_exist:NTF \g__pdfmanagement_active_bool
+\IfPDFManagementActiveTF
   {
-    \bool_if:NTF \g__pdfmanagement_active_bool
-      {
-        \bool_gset_true:N \g__spotxcolor_pdfmanagement_bool
-        % Generate nnx variant: the third argument (object reference)
-        % must be x-expanded at call time, because \pdfmanagement_add:nnn
-        % stores it lazily. Without expansion, all entries end up sharing
-        % the last value of \l_tmpb_tl.
-        \cs_generate_variant:Nn \pdfmanagement_add:nnn { nnx }
-      }
-      { }
+    \bool_gset_true:N \g__spotxcolor_pdfmanagement_bool
+    % Generate nne variant: the third argument (object reference)
+    % must be e-expanded at call time, because \pdfmanagement_add:nnn
+    % stores it lazily. Without expansion, all entries end up sharing
+    % the last value of \l_tmpb_tl.
+    \cs_generate_variant:Nn \pdfmanagement_add:nnn { nne }
   }
   { }
 
@@ -103,7 +93,7 @@
     % \__pdfmanagement_patch_pgfcolorspaces:w (Issue #2).
     \bool_if:NTF \g__spotxcolor_pdfmanagement_bool
       {
-        \pdfmanagement_add:nnx { Page/Resources/ColorSpace } {#1} {#2}
+        \pdfmanagement_add:nne { Page/Resources/ColorSpace } {#1} {#2}
       }
       {
         % Traditional mode: use PGF's hook or direct resource manipulation.
