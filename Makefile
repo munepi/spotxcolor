@@ -1,12 +1,14 @@
 SPOTXVER := $(shell awk -F'[{}]' '/ProvidesExplPackage/ {print $$6}' spotxcolor.sty)
 
+DOCS := spotxcolor.pdf spotxcolor-technote.pdf
+
 .PHONY: ctanzip
 ctanzip: spotxcolor.zip ## Archive for CTAN upload
-spotxcolor.zip: clean spotxcolor.pdf
+spotxcolor.zip: clean $(DOCS)
 	git archive --format=tar --prefix=spotxcolor/ HEAD | gtar -x
 	## remove unpacked files
 	cd spotxcolor/ && \
-		rm -f .gitignore Makefile pdfname_escape.sh spotxcolor-technote.tex
+		rm -f .gitignore Makefile pdfname_escape.sh
 	## then, now just make archive
 	zip -9 -r spotxcolor.zip spotxcolor/*
 	rm -rf spotxcolor
@@ -16,11 +18,16 @@ spotxcolor.zip: clean spotxcolor.pdf
 spotxcolor.pdf: spotxcolor.tex
 	lualatex $<
 
+.PHONY: spotxcolor-technote.pdf
+spotxcolor-technote.pdf: spotxcolor-technote.tex
+	lualatex $<
+	lualatex $<
+
 .PHONY: clean
 clean: ## Clean this repository
 	rm -rf spotxcolor.zip spotxcolor
 	rm -f *.aux *.log *.out *.toc
-	rm -f test-*.qdf test-*.pdf test_version
+	rm -f test-ptex2pdf.tex test-*.pdf test-*.qdf test_version
 	rm -f test_*.tar.gz test-pdfmgmt_*.tar.gz
 	find . -type f -name "*~" -delete
 
