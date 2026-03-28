@@ -5,7 +5,8 @@ ctanzip: spotxcolor.zip ## Archive for CTAN upload
 spotxcolor.zip: clean spotxcolor.pdf
 	git archive --format=tar --prefix=spotxcolor/ HEAD | gtar -x
 	## remove unpacked files
-	rm -f spotxcolor/.gitignore spotxcolor/Makefile
+	cd spotxcolor/ && \
+		rm -f .gitignore Makefile pdfname_escape.sh spotxcolor-technote.tex
 	## then, now just make archive
 	zip -9 -r spotxcolor.zip spotxcolor/*
 	rm -rf spotxcolor
