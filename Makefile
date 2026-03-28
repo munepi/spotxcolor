@@ -30,10 +30,23 @@ clean: ## Clean this repository
 	rm -f *.qdf test-ptex2pdf* test-colorspace* test_version
 	find . -type f -name "*~" -delete
 
+# spotxcolor の QDF だけ (colorspace 比較用は除外)
+SPOTX_QDFS := test-pdftex_$(SPOTXVER).qdf \
+              test-luatex_$(SPOTXVER).qdf \
+              test-xetex_$(SPOTXVER).qdf \
+              test-ptex2pdf_$(SPOTXVER).qdf
+
 .PHONY: test
 test: test_version $(QDF_TARGETS) ## Run test natively in Makefile
 	grep -h '^spotxcolor.sty' *.log || true
 	@echo "Finished tests for version: $(SPOTXVER)"
+
+.PHONY: check
+check: test ## Run test + PDF compliance checks
+	@echo "========================================"
+	@echo " PDF compliance checks  (v$(SPOTXVER))"
+	@echo "========================================"
+	@sh pdfname_escape.sh $(SPOTX_QDFS)
 
 test_version: spotxcolor.sty
 	awk -F'[{}]' '/ProvidesExplPackage/ {gsub(/-/, "/", $$4); print "Testing:", $$2, $$4, "v"$$6}' $< > $@
