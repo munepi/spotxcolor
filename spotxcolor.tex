@@ -323,31 +323,33 @@ Because \textsf{spotxcolor} utilizes robust, modern techniques (like hooking int
 Attempting to manually manipulate the \texttt{/ColorSpace} dictionary on a per-page basis is dangerous in modern \LaTeX\ and can easily corrupt the PDF structure.
 By neutralizing these legacy commands, \textsf{spotxcolor} guarantees that older documents will compile perfectly and safely without any structural PDF errors.
 
+
 \section{Compatibility with pdfmanagement (l3pdf)}
 
 \subsection{Background}
 
 Modern \LaTeX\ (since 2020) provides an optional PDF resource management layer called \emph{pdfmanagement},
 activated by placing |\DocumentMetadata{}| before |\documentclass|.
-When pdfmanagement is active, it takes exclusive control of all PDF page resources (including the \texttt{/ColorSpace} dictionary), and direct access via |\pdfpageresources| or |\special{pdf:put}| is disabled.
+When pdfmanagement is active, it takes exclusive control of all PDF page resources---including the \texttt{/ColorSpace} dictionary---and direct access via |\pdfpageresources| or |\special{pdf:put}| is forbidden.
 
-This conflicts with the traditional approach used by \textsf{spotxcolor} (and by \textsf{PGF}'s |\pgfutil@addpdfresource@colorspaces|) to register Separation color space entries.
+Furthermore, pdfmanagement redefines PGF's |\pgfutil@addpdfresource@colorspaces| with its own parser (|\__pdfmanagement_patch_pgfcolorspaces:w|), which expects a different argument format.
+Passing the raw object references that \textsf{spotxcolor} produces (e.g., |42 0 R|) through this rewritten macro causes a ``Runaway argument'' error.
 
-\subsection{How spotxcolor Handles This}
+\subsection{Automatic Detection and Dispatch}
 
-Starting with v1.5, \textsf{spotxcolor} detects pdfmanagement at load time using |\IfPDFManagementActiveTF| and automatically switches its resource registration strategy:
+\textsf{spotxcolor} detects pdfmanagement at load time using |\IfPDFManagementActiveTF| and automatically switches its resource registration strategy:
 
 \begin{center}
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{ll}
 \hline
-\textbf{Mode} & \textbf{Resource Registration Method} \\
+\textbf{Mode} & \textbf{Resource Registration} \\
 \hline
 Traditional (no pdfmanagement) & |\pgfutil@addpdfresource@colorspaces| \\
-                               & or direct |\pdfpageresources| / |\special{pdf:put}| \\
+                               & or |\pdfpageresources| / |\special{pdf:put}| \\
 \hline
-pdfmanagement active & |\pdfmanagement_add:nnn {Page} {ColorSpace}| \\
-                     & (l3pdf API) \\
+pdfmanagement active & |\pdfmanagement_add:nnn| \\
+                     & |{Page/Resources/ColorSpace}| \\
 \hline
 \end{tabular}
 \end{center}
@@ -355,7 +357,7 @@ pdfmanagement active & |\pdfmanagement_add:nnn {Page} {ColorSpace}| \\
 \noindent This switch is transparent to the user.
 All existing |\definespotcolor|, |\color|, |\textcolor|, |\pagecolor|, and \textsf{TikZ} commands work identically in both modes.
 
-\subsection{Usage with \texttt{\textbackslash DocumentMetadata}}
+\subsection{Usage}
 
 To use \textsf{spotxcolor} with pdfmanagement, simply add |\DocumentMetadata{}| as the very first line of your document:
 
@@ -372,12 +374,6 @@ To use \textsf{spotxcolor} with pdfmanagement, simply add |\DocumentMetadata{}| 
 \end{quote}
 
 \noindent No additional options or workarounds are required.
-
-\subsection{Known Interactions}
-
-When pdfmanagement is active, PGF's own resource management also needs to cooperate with l3pdf.
-Recent versions of \textsf{PGF} (3.1.10+) include built-in pdfmanagement awareness.
-If you encounter warnings related to PGF resource registration, ensure your \TeX\ Live distribution is up to date.
 
 
 \section{Limitations}
