@@ -15,6 +15,7 @@ This package provides robust spot color (e.g., DIC, PANTONE) support for the `xc
   - Uncolored patterns (`patterns` and `patterns.meta`) with spot color via `[/Pattern [/Separation ...]]` color spaces.
   - Fadings (transparency masks) and blend modes (e.g., multiply).
 - **Decorations:** Seamlessly integrates with `colortbl` (zebra-striped tables) and `tcolorbox` (frames, backgrounds, shadows).
+- **pdfmanagement Compatibility:** Automatically detects when pdfmanagement (`l3pdf`) is active (i.e., `\DocumentMetadata{}` is used). No manual configuration is needed — spot colors work transparently with both traditional and pdfmanagement-based workflows.
 
 ### Limitations
 
