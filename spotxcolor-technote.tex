@@ -47,10 +47,28 @@ The legacy \pkg{spotcolor} package and the more modern \pkg{colorspace} package 
 \pkg{spotcolor} suffered from structural PDF issues with modern \pkg{expl3}/\pkg{xcolor} updates,
 and \pkg{colorspace} lacked full support for \texttt{dvipdfmx}-based workflows ((u)p\LaTeX).
 
+\subsection{The Core Principle}
+
+The design philosophy of \pkg{spotxcolor} can be stated simply:
+\pkg{xcolor} handles color arithmetic,
+and PDF-specific Separation color spaces are written directly as PDF literals.
+No custom color models, no \pkg{xcolor} internal hacking.
+
+Other spot color packages (\pkg{spotcolor}, \pkg{xespotcolor}, \pkg{colorspace})
+attempt to work around \pkg{xcolor}'s lack of Separation awareness
+by declaring custom color models deep inside \pkg{xcolor}'s internals.
+But \pkg{xcolor}'s internal API is not stable across versions,
+making this approach inherently fragile.
+
+\pkg{spotxcolor} takes the opposite approach:
+if \pkg{xcolor} converts spot colors to CMYK,
+then detect the proportional tint from the CMYK values
+and emit the PDF Separation operators directly as PDF literals.
+This keeps the spot color logic entirely outside of \pkg{xcolor}'s color model system.
+
 \subsection{The Strategy: Intercept, Detect, Replace}
 
-Rather than modifying \pkg{xcolor}'s internal color model (which would break its mixing engine),
-\pkg{spotxcolor} takes a non-invasive approach:
+Based on this principle, \pkg{spotxcolor} takes a non-invasive approach:
 
 \begin{enumerate}
 \item \textbf{Register normally.}
@@ -255,7 +273,15 @@ Implementing DeviceN support would require:
 \item Extending the matching engine to handle multi-spot combinations
 \end{itemize}
 
-This is a substantial extension and is considered out of scope for \pkg{spotxcolor}.
+In commercial printing practice, non-proportional spot color mixes
+have no meaningful plate separation:
+a mix like |DIC161s!80!black| does not correspond to
+a single spot ink at a recoverable tint percentage,
+so CMYK process printing is the correct output for such colors.
+The fallback to CMYK is therefore not a practical limitation.
+
+Implementing DeviceN support would be a substantial extension
+and is considered out of scope for \pkg{spotxcolor}.
 
 % =====================================================================
 \section{Operator String Construction}
@@ -323,6 +349,26 @@ The spot color operators override the CMYK state, so the visual result is correc
 
 For |\pagecolor|, |\special{background cmyk ...}| generates a separate background content stream that cannot be overridden.
 \pkg{spotxcolor} uses the |shipout/background| hook to emit a spot-colored full-page rectangle in the main content stream, which paints over the CMYK background.
+
+\subsection{Why Not \texttt{pdf:bcolor}/\texttt{pdf:ecolor}?}
+
+The \texttt{dvipdfmx} driver provides a ``balanced color'' mechanism:
+|\special{pdf:bcolor [c m y k]}| pushes a color onto the driver's internal stack,
+and |\special{pdf:ecolor}| pops it.
+This is the standard path used by the \pkg{pdfcol}/\texttt{dvipdfmx.def} driver layer.
+
+However, this mechanism only accepts numeric CMYK/RGB/Gray values.
+The \pkg{xcolor} $\to$ \pkg{pdfcol} $\to$ \texttt{dvipdfmx} pipeline
+converts everything to numeric color values before reaching the driver layer,
+so there is no way to carry ``this is a spot color'' information through the bcolor path.
+
+This is why \pkg{spotxcolor} uses
+|\special{color push cmyk ...}| followed by |\special{pdf:code ...}|
+(the dvips-compatible color stack path),
+rather than |\special{pdf:bcolor}|/|\special{pdf:ecolor}|.
+The |pdf:code| special allows writing arbitrary PDF operators,
+including Separation color space operators,
+which the bcolor interface cannot express.
 
 
 \section{Comparison of Implementation Approaches}
