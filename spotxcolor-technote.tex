@@ -16,8 +16,6 @@
 
 \newcommand\pkg[1]{\textsf{#1}}
 \newcommand\cs[1]{\texttt{\textbackslash #1}}
-\newcommand\op[1]{\texttt{#1}}
-
 \title{\textsf{spotxcolor} Technical Note}
 \author{Munehiro Yamamoto}
 \date{2026/03/29 v1.7}
@@ -435,21 +433,10 @@ There is no |\special|-based fallback.
 
 \subsection{\textsf{spotxcolor} --- Late-Stage Interception}
 
-\pkg{spotxcolor} (2026) takes a fundamentally different approach: rather than modifying \pkg{xcolor}'s internal color model, it lets \pkg{xcolor} operate entirely in CMYK and intercepts the output at multiple stages.
+As described in Section~1.2 (``The Core Principle''), \pkg{spotxcolor} (2026) takes a fundamentally different approach: rather than modifying \pkg{xcolor}'s internal color model, it lets \pkg{xcolor} operate entirely in CMYK and intercepts the output at multiple stages.
+Four interception layers (|\set@color|, |\set@page@color|, PGF driver macros, and |\pgfsys@setpatternuncolored|) cover all output paths; see Section~2 for details.
 
-The key insight is that for proportional tints (|DIC161s!N|), the resulting CMYK values are always a scalar multiple of the base spot color's CMYK values.
-By checking this proportionality at output time, \pkg{spotxcolor} can transparently convert CMYK to Separation operators without any cooperation from \pkg{xcolor}'s mixing engine.
-
-Four interception layers cover all output paths:
-
-\begin{enumerate}
-\item |\set@color| (xcolor color stack) --- covers |\color|, |\textcolor|, \pkg{colortbl}, \pkg{tcolorbox}
-\item |\set@page@color| --- covers |\pagecolor|
-\item PGF driver macros (|\pgfsys@color@cmyk@fill|, etc.) --- covers TikZ fill/stroke
-\item |\pgfsys@setpatternuncolored| --- covers pattern fills via |[/Pattern [/Separation ...]]|
-\end{enumerate}
-
-This approach has the advantage of being completely transparent to all packages that use \pkg{xcolor} or PGF for color management, requiring no special commands or manual resource management.
+This approach is completely transparent to all packages that use \pkg{xcolor} or PGF for color management, requiring no special commands or manual resource management.
 The trade-off is that non-proportional mixes (|DIC161s!80!black|) cannot be detected and fall back to CMYK, whereas \textsf{colorspace}'s DeviceN support can theoretically handle such cases.
 
 \subsection{Summary of Architectural Differences}

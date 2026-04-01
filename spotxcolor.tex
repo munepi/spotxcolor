@@ -46,7 +46,7 @@ Its core features include:
 
 \begin{itemize}
 \item \textbf{Native \textsf{xcolor} Integration:} Use spot colors exactly like standard colors (e.g., |\textcolor|, |\pagecolor|), generating perfect PDF structures for \texttt{pdftex} and \texttt{luatex}.
-\item \textbf{Universal Engine Support \& Safe Fallbacks:} Ensures safe CMYK fallback for \texttt{dvipdfmx} and \texttt{xetex} when using standard macros, while providing explicit injection commands (|\SpotColor|) for true spot color output in \texttt{dvipdfmx}.
+\item \textbf{Universal Engine Support:} All standard macros (|\color|, |\textcolor|, |\pagecolor|) produce true spot color output on all four engines (pdfTeX, LuaTeX, XeTeX, dvipdfmx) via automatic interception. No special commands or driver options are required.
 \item \textbf{Advanced Graphics (\textsf{TikZ}/\textsf{PGF}) Support:} Internally patches \textsf{PGF} driver macros and pattern primitives to emit true spot color PDF operators.
 It supports fill/stroke separation, fadings, blend modes, and uncolored patterns (\texttt{patterns} and \texttt{patterns.meta}).
 Spot color tints are auto-detected from CMYK values throughout the entire PGF rendering pipeline.
@@ -326,7 +326,7 @@ To use \textsf{spotxcolor} with pdfmanagement, simply add |\DocumentMetadata{}| 
 
 The \textsf{spotxcolor} package auto-detects spot colors by checking whether CMYK values in the PDF output are a \emph{proportional scalar multiple} of a registered spot color's base CMYK values.
 This approach covers the vast majority of practical use cases, but has inherent limitations in the following areas.
-% %TODO:% For a detailed technical explanation of the interception architecture and why these limitations exist, see the companion document \texttt{spotxcolor-technote.pdf}.
+For a detailed technical explanation of the interception architecture and why these limitations exist, see the companion document \texttt{spotxcolor-technote.pdf}.
 
 \subsection{Non-Proportional Color Mixes}
 
@@ -373,7 +373,7 @@ For shadings, the content stream contains only |/Fm16 Do| (``paint this Form~XOb
 
 Since spotxcolor's interception operates at the content stream operator level, it cannot modify these pre-built PDF objects.
 True spot color gradients would require generating Shading objects with \texttt{/ColorSpace [/Separation~...]} and tint-value function endpoints, which amounts to rewriting PGF's shading generation code entirely.
-% %TODO:% See the Technical Note (\texttt{spotxcolor-technote.pdf}, Section~X.Y) for a detailed structural comparison.
+See the Technical Note (\texttt{spotxcolor-technote.pdf}, ``Hatching vs.\ Shading: A Structural Difference'') for a detailed structural comparison.
 
 \needspace{2\baselineskip}
 \subsection{Summary}
