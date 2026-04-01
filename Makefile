@@ -17,6 +17,7 @@ spotxcolor.zip: clean $(DOCS)
 .PHONY: spotxcolor.pdf
 spotxcolor.pdf: spotxcolor.tex
 	lualatex $<
+	lualatex $<
 
 .PHONY: spotxcolor-technote.pdf
 spotxcolor-technote.pdf: spotxcolor-technote.tex
