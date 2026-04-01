@@ -138,7 +138,9 @@ For the following examples, we have defined three spot colors forming a triadic 
 
 \subsection{TikZ: Patterns and Multiply Blend Mode}
 
-\textsf{spotxcolor} safely forces PGF's hardcoded RGB patterns into the CMYK color space to ensure print safety. It also flawlessly handles PDF blend modes (e.g., multiply) with spot colors.
+\textsf{spotxcolor} safely forces PGF's hardcoded RGB patterns into the CMYK color space to ensure print safety.
+This CMYK conversion applies to all uncolored patterns, not just spot colors---so even in a pure CMYK workflow without any spot colors, loading \textsf{spotxcolor} eliminates the \texttt{/DeviceRGB} operators that PGF would otherwise emit for pattern fills.
+It also flawlessly handles PDF blend modes (e.g., multiply) with spot colors.
 
 \vspace{1em}
 \begin{center}
