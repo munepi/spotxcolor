@@ -50,7 +50,7 @@ Load the `spotxcolor` package. It will automatically load `xcolor` and detect yo
 % All standard xcolor commands produce true spot color output:
 \textcolor{DIC161s}{100\% Spot Color}
 \textcolor{DIC161s!50}{50\% Tinted Spot Color}
-\pagecolor{DIC161!10}
+\pagecolor{DIC161s!10}
 
 % Low-level command for direct PDF literal injection:
 \SpotColor{DIC161s}{1.0}
