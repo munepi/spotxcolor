@@ -47,13 +47,13 @@ To address these gaps, the \textsf{spotxcolor} package natively hooks into the \
 Its core features include:
 
 \begin{itemize}
-\item \textbf{Native \textsf{xcolor} Integration:} Use spot colors exactly like standard colors (e.g., |\textcolor|, |\pagecolor|), generating perfect PDF structures for \texttt{pdftex} and \texttt{luatex}.
-\item \textbf{Universal Engine Support:} All standard macros (|\color|, |\textcolor|, |\pagecolor|) produce true spot color output on all four engines (pdfTeX, LuaTeX, XeTeX, dvipdfmx) via automatic interception. No special commands or driver options are required.
-\item \textbf{Advanced Graphics (\textsf{TikZ}/\textsf{PGF}) Support:} Internally patches \textsf{PGF} driver macros and pattern primitives to emit true spot color PDF operators.
+\item Native \textsf{xcolor} Integration: Use spot colors exactly like standard colors (e.g., |\textcolor|, |\pagecolor|), generating perfect PDF structures for \texttt{pdftex} and \texttt{luatex}.
+\item Universal Engine Support: All standard macros (|\color|, |\textcolor|, |\pagecolor|) produce true spot color output on all four engines (pdfTeX, LuaTeX, XeTeX, dvipdfmx) via automatic interception. No special commands or driver options are required.
+\item Advanced Graphics (\textsf{TikZ}/\textsf{PGF}) Support: Internally patches \textsf{PGF} driver macros and pattern primitives to emit true spot color PDF operators.
 It supports fill/stroke separation, fadings, blend modes, and uncolored patterns (\texttt{patterns} and \texttt{patterns.meta}).
 Spot color tints are auto-detected from CMYK values throughout the entire PGF rendering pipeline.
-\item \textbf{Seamless Decorations:} Works flawlessly with \textsf{colortbl} (zebra-striped tables) and \textsf{tcolorbox} (frames, backgrounds, shadows).
-\item \textbf{Complete Backward Compatibility:} Perfectly emulates user commands from both \textsf{spotcolor} and \textsf{colorspace} packages.
+\item Seamless Decorations: Works flawlessly with \textsf{colortbl} (zebra-striped tables) and \textsf{tcolorbox} (frames, backgrounds, shadows).
+\item Complete Backward Compatibility: Perfectly emulates user commands from both \textsf{spotcolor} and \textsf{colorspace} packages.
 \end{itemize}
 
 \section{Requirements}
@@ -100,9 +100,9 @@ Once registered, you can use standard \textsf{xcolor} commands:
 
 \vspace{0.5em}
 \noindent Live example:
-\textcolor{PANTONE876C}{\textbf{PANTONE 876 C (100\%)}} \quad
-\textcolor{PANTONE876C!50}{\textbf{50\%}} \quad
-\textcolor{PANTONE876C!25}{\textbf{25\%}}
+\textcolor{PANTONE876C}{PANTONE 876 C (100\%)} \quad
+\textcolor{PANTONE876C!50}{50\%} \quad
+\textcolor{PANTONE876C!25}{25\%}
 
 \subsection{Dvipdfmx Explicit Spot Colors}
 All standard macros (|\color|, |\textcolor|, |\pagecolor|) produce true spot color output on \texttt{dvipdfmx}/\texttt{xetex} as well, via automatic \verb|\special{pdf:code}| injection.
@@ -120,7 +120,7 @@ This text is 50\% DIC 161.
 \end{quote}
 
 \subsection{Note for \texttt{(u)p\LaTeX} Users}
-If you compile your document with \texttt{platex} or \texttt{uplatex} and generate a PDF via \texttt{dvipdfmx}, you \textbf{must} specify the \texttt{dvipdfmx} driver option globally in your document class:
+If you compile your document with \texttt{platex} or \texttt{uplatex} and generate a PDF via \texttt{dvipdfmx}, you \emph{must} specify the \texttt{dvipdfmx} driver option globally in your document class:
 
 \begin{quote}
 \begin{verbatim}
@@ -134,7 +134,7 @@ Without this option, modern \textsf{expl3} and \textsf{xcolor} will default to t
 \section{Examples in Advanced Graphics}
 
 The true power of the \textsf{spotxcolor} package lies in its flawless integration with modern graphics libraries.
-For the following examples, we have defined three spot colors forming a triadic color harmony: \textcolor{DIC161s}{\textbf{DIC161s}} (Vermilion), \textcolor{DIC256s}{\textbf{DIC256s}} (Green), and \textcolor{DIC200s}{\textbf{DIC200s}} (Purple).
+For the following examples, we have defined three spot colors forming a triadic color harmony: \textcolor{DIC161s}{DIC161s} (Vermilion), \textcolor{DIC256s}{DIC256s} (Green), and \textcolor{DIC200s}{DIC200s} (Purple).
 
 \subsection{TikZ: Patterns and Multiply Blend Mode}
 
@@ -175,11 +175,11 @@ Spot colors and their tints (e.g., \texttt{DIC200s!10}) can be used directly wit
   title={Triadic Harmony with \textsf{tcolorbox}},
   drop fuzzy shadow=DIC200s!30    % Shadow color (30% tint)
 ]
-This box is styled entirely using \textbf{DIC 200s} and its tints.
+This box is styled entirely using DIC 200s and its tints.
 The frame is 100\% spot color, the title background is 80\%, the content background is 5\%, and even the drop shadow is rendered safely using a 30\% tint.
 
 \vspace{0.5em}
-\noindent You can also mix text colors easily: \textcolor{DIC161s}{\textbf{Vermilion Text}} and \textcolor{DIC256s}{\textbf{Green Text}}.
+\noindent You can also mix text colors easily: \textcolor{DIC161s}{Vermilion Text} and \textcolor{DIC256s}{Green Text}.
 \end{tcolorbox}
 
 
@@ -201,22 +201,22 @@ The CMYK values in this file are natively extracted from Adobe's official legacy
   attach boxed title to top left={xshift=10pt, yshift=-10pt},
   boxed title style={rounded corners, sharp corners=southwest}
 ]
-Please do \textbf{not} load the entire \texttt{dic.def} file (or any other large dictionary) into your preamble using \verb|\input|.
+Please do \emph{not} load the entire \texttt{dic.def} file (or any other large dictionary) into your preamble using \verb|\input|.
 
 Calling \verb|\definespotcolor| immediately generates PDF objects (ColorSpace dictionaries and Tint Transform Functions) to guarantee strict PDF specification compliance and robustness across all rendering engines.
 
 Loading thousands of unused spot colors will bloat your PDF with unnecessary objects and resource aliases, which may cause PDF viewers (including Adobe Acrobat) to freeze or fail to render the document.
 
-Instead, open \texttt{dic.def} in a text editor, copy \textbf{only} the specific \verb|\definespotcolor| lines you actually need, and paste them into your document preamble.
+Instead, open \texttt{dic.def} in a text editor, copy \emph{only} the specific \verb|\definespotcolor| lines you actually need, and paste them into your document preamble.
 \end{tcolorbox}
 
 \subsection{Extraction Tools}
 If you need spot colors from other color books (e.g., PANTONE, TOYO, HKS), you can extract them from Adobe Illustrator's color book files using the provided Ruby scripts located in the \texttt{doc} directory:
 
 \begin{itemize}
-\item \textbf{\texttt{acbl2def.rb}}: Extracts native, perfect CMYK values from Adobe Color Book Legacy (\texttt{.acbl}) XML files. \emph{(Highly Recommended)}
-\item \textbf{\texttt{ase2def.rb}}: Extracts CMYK values from Adobe Swatch Exchange (\texttt{.ase}) files exported directly from Illustrator.
-\item \textbf{\texttt{acb2def.rb}}: Parses modern binary Adobe Color Book (\texttt{.acb}) files. Note that many \texttt{.acb} files store colors in the Lab color space. This script applies a 3rd-Degree Polynomial Regression Model (trained on native Adobe data) to predict highly accurate CMYK fallback values while minimizing K-channel muddiness. While extremely close to native values, it remains an approximation. For exact manufacturer values, use \texttt{acbl2def.rb} or \texttt{ase2def.rb}.
+\item \texttt{acbl2def.rb}: Extracts native, perfect CMYK values from Adobe Color Book Legacy (\texttt{.acbl}) XML files. \emph{(Highly Recommended)}
+\item \texttt{ase2def.rb}: Extracts CMYK values from Adobe Swatch Exchange (\texttt{.ase}) files exported directly from Illustrator.
+\item \texttt{acb2def.rb}: Parses modern binary Adobe Color Book (\texttt{.acb}) files. Note that many \texttt{.acb} files store colors in the Lab color space. This script applies a 3rd-Degree Polynomial Regression Model (trained on native Adobe data) to predict highly accurate CMYK fallback values while minimizing K-channel muddiness. While extremely close to native values, it remains an approximation. For exact manufacturer values, use \texttt{acbl2def.rb} or \texttt{ase2def.rb}.
 \end{itemize}
 
 \subsection{A Note on PANTONE Color Families}
@@ -267,7 +267,7 @@ The \textsf{colorspace} package required authors to manually manipulate page res
 \item |\resetpagecolorspace|
 \end{itemize}
 
-\textsf{spotxcolor} defines both of these as \textbf{empty dummy macros} (they do nothing).
+\textsf{spotxcolor} defines both of these as empty dummy macros (they do nothing).
 Why?
 Because \textsf{spotxcolor} utilizes robust, modern techniques (like hooking into PGF's resource management API) to inject color spaces globally and safely.
 Attempting to manually manipulate the \texttt{/ColorSpace} dictionary on a per-page basis is dangerous in modern \LaTeX\ and can easily corrupt the PDF structure.
@@ -293,7 +293,7 @@ Passing the raw object references that \textsf{spotxcolor} produces (e.g., |42 0
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{ll}
 \hline
-\textbf{Mode} & \textbf{Resource Registration} \\
+Mode & Resource Registration \\
 \hline
 Traditional (no pdfmanagement) & |\pgfutil@addpdfresource@colorspaces| \\
                                & or |\pdfpageresources| / |\special{pdf:put}| \\
@@ -386,22 +386,22 @@ See the Technical Note (\texttt{spotxcolor-technote.pdf}, ``Hatching vs.\ Shadin
 \renewcommand{\arraystretch}{1.3}
 \begin{tabular}{ll>{\raggedright\arraybackslash}m{11em}}
 \hline
-\textbf{Feature} & \textbf{Status} & \textbf{Notes} \\
+Feature & Status & Notes \\
 \hline
-|\color|, |\textcolor|     & \textcolor{DIC256s}{\textbf{Spot}} & All engines \\
-|\pagecolor|               & \textcolor{DIC256s}{\textbf{Spot}} & All engines \\
-|\SpotColor|               & \textcolor{DIC256s}{\textbf{Spot}} & Direct PDF literal \\
-TikZ fill/stroke           & \textcolor{DIC256s}{\textbf{Spot}} & Via PGF driver patch \\
-Low-level PGF commands     & \textcolor{DIC256s}{\textbf{Spot}} & Via PGF driver patch \\
-Uncolored patterns         & \textcolor{DIC256s}{\textbf{Spot}} & Via \texttt{[/Pattern\space [/Separation~...]]} \\
-Fading / transparency      & \textcolor{DIC256s}{\textbf{Spot}} & Fill color is spot \\
-Opacity + blend modes      & \textcolor{DIC256s}{\textbf{Spot}} & Fill color is spot \\
-\textsf{colortbl} row colors & \textcolor{DIC256s}{\textbf{Spot}} & Via |\set@color| patch \\
-\textsf{tcolorbox}         & \textcolor{DIC256s}{\textbf{Spot}} & Frame, background, shadow \\
+|\color|, |\textcolor|     & \textcolor{DIC256s}{Spot} & All engines \\
+|\pagecolor|               & \textcolor{DIC256s}{Spot} & All engines \\
+|\SpotColor|               & \textcolor{DIC256s}{Spot} & Direct PDF literal \\
+TikZ fill/stroke           & \textcolor{DIC256s}{Spot} & Via PGF driver patch \\
+Low-level PGF commands     & \textcolor{DIC256s}{Spot} & Via PGF driver patch \\
+Uncolored patterns         & \textcolor{DIC256s}{Spot} & Via \texttt{[/Pattern\space [/Separation~...]]} \\
+Fading / transparency      & \textcolor{DIC256s}{Spot} & Fill color is spot \\
+Opacity + blend modes      & \textcolor{DIC256s}{Spot} & Fill color is spot \\
+\textsf{colortbl} row colors & \textcolor{DIC256s}{Spot} & Via |\set@color| patch \\
+\textsf{tcolorbox}         & \textcolor{DIC256s}{Spot} & Frame, background, shadow \\
 \hline
-Proportional tints (\texttt{!N})   & \textcolor{DIC256s}{\textbf{Spot}} & Auto-detected \\
-Non-proportional mixes (\texttt{!N!color}) & \textbf{CMYK} & Needs \texttt{/DeviceN} \\
-Shading (gradients)        & \textbf{RGB}  & PGF hardcodes \texttt{/DeviceRGB} \\
+Proportional tints (\texttt{!N})   & \textcolor{DIC256s}{Spot} & Auto-detected \\
+Non-proportional mixes (\texttt{!N!color}) & CMYK & Needs \texttt{/DeviceN} \\
+Shading (gradients)        & RGB  & PGF hardcodes \texttt{/DeviceRGB} \\
 \hline
 \end{tabular}
 \end{center}
@@ -429,7 +429,7 @@ It does not support \texttt{pdftex} or \texttt{luatex}.
 \item[\textsf{colorspace} (2015--2019)]
 A modern package supporting Separation and DeviceN color spaces.
 It hooks into \textsf{xcolor}'s internal color representation and provides PGF fill/stroke driver macros.
-It supports \texttt{pdftex} and \texttt{luatex}, but \textbf{not} \texttt{dvipdfmx} or Xe\LaTeX.
+It supports \texttt{pdftex} and \texttt{luatex}, but \emph{not} \texttt{dvipdfmx} or Xe\LaTeX.
 It requires manual page resource management (|\pagecolorspace|, |\resetpagecolorspace|).
 
 \item[\textsf{spotxcolor} (2026)]
@@ -445,7 +445,7 @@ It supports all four major engines and requires no special commands beyond stand
 \small
 \begin{tabular}{lcccc}
 \hline
-\textbf{Feature}
+Feature
   & \textsf{spotcolor}
   & \textsf{xespotcolor}
   & \textsf{colorspace}
