@@ -273,6 +273,17 @@ Because \textsf{spotxcolor} utilizes robust, modern techniques (like hooking int
 Attempting to manually manipulate the \texttt{/ColorSpace} dictionary on a per-page basis is dangerous in modern \LaTeX\ and can easily corrupt the PDF structure.
 By neutralizing these legacy commands, \textsf{spotxcolor} guarantees that older documents will compile perfectly and safely without any structural PDF errors.
 
+\subsection{Full Replacement Packages for \textsf{spotcolor} and \textsf{xespotcolor}}
+\label{sec:replacement-packages}
+
+The wrappers above let you reuse \emph{code fragments} written for \textsf{spotcolor}. This bundle also ships two companion packages, \textsf{spotxcolor-spotcolor} and \textsf{spotxcolor-xespotcolor}, that re-implement the \emph{entire} user interface of the legacy \textsf{spotcolor} and \textsf{xespotcolor} packages (including their \texttt{hks}/\texttt{pantone} options) on top of \textsf{spotxcolor}. An existing document can switch over by changing only the loaded package name:
+\begin{quote}
+\begin{verbatim}
+\usepackage[hks,pantone]{spotxcolor-spotcolor}          % was: spotcolor
+\usepackage[hks,pantone,xcolor]{spotxcolor-xespotcolor} % was: xespotcolor
+\end{verbatim}
+\end{quote}
+No other change is required: |\NewSpotColorSpace|, |\AddSpotColor|, |\SetPageColorSpace|, |\SpotColor|, and |\definecolor{<name>}{spotcolor}{<spot-name>,<tint>}| all keep working, but now produce true, multi-engine Separation output. The \texttt{hks}/\texttt{pantone} color tables are registered lazily -- a color's PDF object is only created the first time it is actually used, so loading the 1089-entry \texttt{pantone} table stays cheap. See \texttt{README.md} for details.
 
 \section{Compatibility with pdfmanagement (l3pdf)}
 
