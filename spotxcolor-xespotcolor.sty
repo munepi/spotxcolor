@@ -1,0 +1,79 @@
+%%
+%% spotxcolor-xespotcolor.sty
+%%
+%% A drop-in replacement for the legacy `xespotcolor' package (Apostolos
+%% Syropoulos, 2014-2021), implemented on top of `spotxcolor'. Existing
+%% documents that read
+%%   \usepackage[hks,pantone,xcolor]{xespotcolor}
+%%   \NewSpotColorSpace{...}  \AddSpotColor{...}  \SetPageColorSpace{...}
+%%   \definecolor{X}{spotcolor}{NAME,TINT}   \SpotColor{NAME}{TINT}
+%% continue to work unmodified. `spotxcolor' is xcolor-based and
+%% multi-engine by design, so the `xcolor' option is accepted for source
+%% compatibility but has no effect (xcolor integration is always active).
+%%
+%% Copyright (c) 2026 Munehiro Yamamoto <munepixyz@gmail.com>
+%%
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3c
+%% of this license or any later version.
+%% The latest version of this license is in
+%%   http://www.latex-project.org/lppl.txt
+%% and version 1.3c or later is part of all distributions of LaTeX
+%% version 2005/12/01 or later.
+%%
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{xespotcolor}
+  [2026/09/14 v1.0 Compatibility replacement for xespotcolor, via spotxcolor]
+
+\PackageInfo{xespotcolor}
+  {This is spotxcolor's compatibility replacement for the legacy\MessageBreak
+   `xespotcolor' package. See spotxcolor.pdf for the full modern interface}
+
+\RequirePackage{iftex}
+\RequirePackage{spotxcolor}
+\RequirePackage{spotxcolor-legacycolor}
+
+\newif\ifspotxcolor@legacy@hks
+\newif\ifspotxcolor@legacy@pantone
+\DeclareOption{hks}{\spotxcolor@legacy@hkstrue}
+\DeclareOption{pantone}{\spotxcolor@legacy@pantonetrue}
+% `xcolor' is always in effect under spotxcolor; kept only so that
+% \usepackage[xcolor]{xespotcolor} does not raise an "unused option" error.
+\DeclareOption{xcolor}{}
+\ProcessOptions\relax
+
+% Preload the requested tables lazily -- see spotxcolor-legacycolor.sty.
+\ifspotxcolor@legacy@hks
+  \spotxcolorlegacypreload{spotxcolor-hks.def}
+\fi
+\ifspotxcolor@legacy@pantone
+  \spotxcolorlegacypreload{spotxcolor-pantone.def}
+\fi
+
+% =====================================================================
+% --- Legacy PGF driver macros for the `spotcolor' model ---
+% =====================================================================
+% The original xespotcolor defined these so that PGF/TikZ could render a
+% color declared with model `spotcolor' directly (bypassing xcolor). They
+% are largely superseded by spotxcolor's own auto-detecting PGF driver
+% patches (core spotxcolor.sty), which fire for ordinary xcolor usage; these
+% are kept only for documents that reference the low-level PGF color model
+% `spotcolor' explicitly. Each ensures the color is registered before
+% emitting the raw PDF operator, exactly as \SpotColor does.
+\makeatletter
+\newcommand\pgfsys@color@spotcolor@stroke[2]{%
+  \spotxcolorlegacyensure{#1}%
+  \pgfsysprotocol@literal{/#1 CS #2 SC}%
+}
+\newcommand\pgfsys@color@spotcolor@fill[2]{%
+  \spotxcolorlegacyensure{#1}%
+  \pgfsysprotocol@literal{/#1 cs #2 sc}%
+}
+\newcommand\pgfsys@color@spotcolor[2]{%
+  \pgfsys@color@spotcolor@stroke{#1}{#2}%
+  \pgfsys@color@spotcolor@fill{#1}{#2}%
+}
+\makeatother
+
+\endinput

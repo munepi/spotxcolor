@@ -28,8 +28,8 @@ spotxcolor-technote.pdf: spotxcolor-technote.tex
 clean: ## Clean this repository
 	rm -rf spotxcolor.zip spotxcolor
 	rm -f *.aux *.log *.out *.toc
-	rm -f test-ptex2pdf.tex test-*.pdf test-*.qdf test_version
-	rm -f test_*.tar.gz test-pdfmgmt_*.tar.gz
+	rm -f test-ptex2pdf.tex test-*-ptex2pdf.tex test-*.pdf test-*.qdf test_version
+	rm -f test_*.tar.gz test-pdfmgmt_*.tar.gz test-compat_*.tar.gz
 	find . -type f -name "*~" -delete
 
 SPOTX_QDFS := test-pdftex_$(SPOTXVER).qdf \
@@ -116,4 +116,53 @@ test-pdfmanagement-luatex.pdf: test-pdfmanagement.tex spotxcolor.sty
 	lualatex -jobname=test-pdfmanagement-luatex $<
 
 test-pdfmanagement-%_$(SPOTXVER).qdf: test-pdfmanagement-%.pdf
+	qpdf --qdf $< $@
+
+
+# =====================================================================
+# spotcolor / xespotcolor compatibility-layer tests
+# =====================================================================
+COMPAT_QDFS := test-spotcolor-compat-pdftex_$(SPOTXVER).qdf \
+               test-spotcolor-compat-luatex_$(SPOTXVER).qdf \
+               test-spotcolor-compat-xetex_$(SPOTXVER).qdf \
+               test-spotcolor-compat-ptex2pdf_$(SPOTXVER).qdf \
+               test-xespotcolor-compat-xetex_$(SPOTXVER).qdf \
+               test-xespotcolor-compat-ptex2pdf_$(SPOTXVER).qdf
+
+.PHONY: test-compat
+test-compat: $(COMPAT_QDFS) ## Test the spotcolor/xespotcolor compatibility packages
+	@echo "========================================"
+	@echo " compatibility-layer tests  (v$(SPOTXVER))"
+	@echo "========================================"
+	@tar -cf - $(COMPAT_QDFS) | gzip -9 >test-compat_`date +%Y%m%d%H%M`.tar.gz
+	@echo "All compatibility-layer tests compiled successfully."
+
+test-spotcolor-compat-ptex2pdf.tex: test-spotcolor-compat.tex
+	sed -e 's,\documentclass{article},\documentclass[dvipdfmx]{article},' $< > $@
+
+test-xespotcolor-compat-ptex2pdf.tex: test-xespotcolor-compat.tex
+	sed -e 's,\documentclass{article},\documentclass[dvipdfmx]{article},' $< > $@
+
+test-spotcolor-compat-pdftex.pdf: test-spotcolor-compat.tex spotxcolor-spotcolor.sty spotxcolor-legacycolor.sty spotxcolor-hks.def spotxcolor-pantone.def
+	pdflatex -jobname=test-spotcolor-compat-pdftex $<
+
+test-spotcolor-compat-luatex.pdf: test-spotcolor-compat.tex spotxcolor-spotcolor.sty spotxcolor-legacycolor.sty spotxcolor-hks.def spotxcolor-pantone.def
+	lualatex -jobname=test-spotcolor-compat-luatex $<
+
+test-spotcolor-compat-xetex.pdf: test-spotcolor-compat.tex spotxcolor-spotcolor.sty spotxcolor-legacycolor.sty spotxcolor-hks.def spotxcolor-pantone.def
+	xelatex -jobname=test-spotcolor-compat-xetex $<
+
+test-spotcolor-compat-ptex2pdf.pdf: test-spotcolor-compat-ptex2pdf.tex spotxcolor-spotcolor.sty spotxcolor-legacycolor.sty spotxcolor-hks.def spotxcolor-pantone.def
+	ptex2pdf -l -u $<
+
+test-xespotcolor-compat-xetex.pdf: test-xespotcolor-compat.tex spotxcolor-xespotcolor.sty spotxcolor-legacycolor.sty spotxcolor-hks.def spotxcolor-pantone.def
+	xelatex -jobname=test-xespotcolor-compat-xetex $<
+
+test-xespotcolor-compat-ptex2pdf.pdf: test-xespotcolor-compat-ptex2pdf.tex spotxcolor-xespotcolor.sty spotxcolor-legacycolor.sty spotxcolor-hks.def spotxcolor-pantone.def
+	ptex2pdf -l -u $<
+
+test-spotcolor-compat-%_$(SPOTXVER).qdf: test-spotcolor-compat-%.pdf
+	qpdf --qdf $< $@
+
+test-xespotcolor-compat-%_$(SPOTXVER).qdf: test-xespotcolor-compat-%.pdf
 	qpdf --qdf $< $@

@@ -1,0 +1,73 @@
+%#!./run.bash test-spotcolor-compat.tex
+% test-spotcolor-compat.tex
+%
+% A drop-in replacement test for the legacy `spotcolor' package's own
+% example document (texmf-dist/doc/latex/spotcolor/readme.tex), adapted
+% to load spotxcolor-spotcolor instead of spotcolor. The document body
+% below is intentionally left as close to the original as possible: this
+% is exactly the kind of unmodified legacy document the compatibility
+% layer is meant to support.
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage[hks,pantone]{spotxcolor-spotcolor}
+\usepackage{calc}
+
+\setlength\oddsidemargin{20mm}
+\setlength\evensidemargin{20mm}
+\setlength\textwidth{\paperwidth - 40mm}
+
+\begin{document}
+\setcounter{page}{1}
+\clearpage
+\color{blue}
+\bfseries\Huge Blue text color using color package
+
+\clearpage
+\SetPageColorSpace{PANTONE}
+\SpotColor{PANTONEVioletPC}{1.0}
+\bfseries\Huge Pantone spot color
+
+\clearpage
+\SetPageColorSpace{HKS}
+\SpotColor{HKS68N}{1.0}
+\bfseries\Huge HKS spot color
+
+\clearpage
+\NewSpotColorSpace{SOMECOLORSPACE}
+\AddSpotColor{SOMECOLORSPACE}{SOMECOLOR}{Spot\SpotSpace Color\SpotSpace Name\SpotSpace in\SpotSpace PDF}{0.5 1.0 0.51 0}
+\SetPageColorSpace{SOMECOLORSPACE}
+\definecolor{Spots}{spotcolor}{SOMECOLOR,1.0}
+
+\SpotColor{SOMECOLOR}{1.0}
+\bfseries\Huge Self defined spot color\\
+Some shades are also possible:\\
+\SpotColor{SOMECOLOR}{1.0}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.9}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.8}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.7}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.6}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.5}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.4}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.3}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.2}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.1}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.0}\rule{1cm}{1cm}
+
+\clearpage
+\pagecolor{Spots}
+\SpotColor{SOMECOLOR}{0.1}
+A spotcolor as background color.
+
+\clearpage
+\pagecolor{white}
+\colorbox{Spots}{xxx}
+
+% --- Modern-interface additions: also exercise \textcolor/tinting, which
+% the original spotcolor package's own xcolor model never actually
+% supported (see spotxcolor-technote.pdf, "spotcolor -- Direct PDF Literal
+% Injection"). This must now work, since spotxcolor-spotcolor is xcolor
+% based.
+\clearpage
+\pagecolor{white}
+\textcolor{SOMECOLOR}{\bfseries\Huge \textcolor{SOMECOLOR!50}{Tinted}~via~xcolor}
+\end{document}

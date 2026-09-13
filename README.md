@@ -64,6 +64,17 @@ If you compile your document with `platex` or `uplatex` and generate a PDF via `
 ## Backward Compatibility
 You can easily reuse your existing code and color dictionaries written for the legacy `spotcolor` package. Commands like `\AddSpotColor`, `\NewSpotColorSpace`, and `\SetPageColorSpace` are perfectly emulated.
 
+## Replacing `spotcolor` / `xespotcolor`
+
+The legacy `spotcolor` (Jens Elstner, last updated 2006) and `xespotcolor` (Apostolos Syropoulos, last updated 2021) packages share the structural PDF issues described above, and `spotxcolor` is a drop-in replacement for both. This bundle includes two compatibility packages that re-implement their full user interface on top of `spotxcolor`, so **existing documents do not need to change at all** — only the loaded package name:
+
+```latex
+\usepackage[hks,pantone]{spotxcolor-spotcolor}    % instead of \usepackage[hks,pantone]{spotcolor}
+\usepackage[hks,pantone,xcolor]{spotxcolor-xespotcolor}  % instead of \usepackage[...]{xespotcolor}
+```
+
+Everything keeps working exactly as before — `\NewSpotColorSpace`, `\AddSpotColor`, `\SetPageColorSpace`, `\SpotColor`, and `\definecolor{<name>}{spotcolor}{<spot-name>,<tint>}` — but now produces true, multi-engine PDF Separation output instead of the pdfTeX-only, structurally fragile output of the originals. The bundled HKS and PANTONE color tables are registered lazily: loading the `pantone` option does not create PDF objects for all 1089 colors, only for the ones your document actually uses.
+
 ## License
 
 This package is licensed under the conditions of the LaTeX Project Public License, either version 1.3c of this license or any later version.

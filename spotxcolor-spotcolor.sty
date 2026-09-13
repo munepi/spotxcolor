@@ -1,0 +1,51 @@
+%%
+%% spotxcolor-spotcolor.sty
+%%
+%% A drop-in replacement for the legacy `spotcolor' package (Jens Elstner,
+%% 2006), implemented on top of `spotxcolor'. Existing documents that read
+%%   \usepackage[hks,pantone]{spotcolor}
+%%   \NewSpotColorSpace{...}  \AddSpotColor{...}  \SetPageColorSpace{...}
+%%   \definecolor{X}{spotcolor}{NAME,TINT}   \SpotColor{NAME}{TINT}
+%% continue to work unmodified, but now produce true PDF Separation output
+%% on pdfTeX, LuaTeX, dvipdfmx and XeTeX (the original was pdfTeX-only and
+%% had structural PDF issues -- see spotxcolor-technote.pdf for details).
+%%
+%% Copyright (c) 2026 Munehiro Yamamoto <munepixyz@gmail.com>
+%%
+%% This work may be distributed and/or modified under the
+%% conditions of the LaTeX Project Public License, either version 1.3c
+%% of this license or any later version.
+%% The latest version of this license is in
+%%   http://www.latex-project.org/lppl.txt
+%% and version 1.3c or later is part of all distributions of LaTeX
+%% version 2005/12/01 or later.
+%%
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{spotcolor}
+  [2026/09/14 v1.0 Compatibility replacement for spotcolor, via spotxcolor]
+
+\PackageInfo{spotcolor}
+  {This is spotxcolor's compatibility replacement for the legacy\MessageBreak
+   `spotcolor' package. See spotxcolor.pdf for the full modern interface}
+
+\RequirePackage{spotxcolor}
+\RequirePackage{spotxcolor-legacycolor}
+
+\newif\ifspotxcolor@legacy@hks
+\newif\ifspotxcolor@legacy@pantone
+\DeclareOption{hks}{\spotxcolor@legacy@hkstrue}
+\DeclareOption{pantone}{\spotxcolor@legacy@pantonetrue}
+\ProcessOptions\relax
+
+% Preload the requested tables lazily: only color metadata is recorded now;
+% each color's PDF object is only created the first time it is actually
+% used (via \SpotColor or \definecolor{...}{spotcolor}{...}).
+\ifspotxcolor@legacy@hks
+  \spotxcolorlegacypreload{spotxcolor-hks.def}
+\fi
+\ifspotxcolor@legacy@pantone
+  \spotxcolorlegacypreload{spotxcolor-pantone.def}
+\fi
+
+\endinput
