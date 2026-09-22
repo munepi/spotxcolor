@@ -1,0 +1,68 @@
+%#!./run.bash test-xespotcolor-compat.tex
+% test-xespotcolor-compat.tex
+%
+% A drop-in replacement test for the legacy `xespotcolor' package's own
+% example documents (texmf-dist/doc/xelatex/xespotcolor/spotcolor-test.tex
+% and jatestspot.tex), adapted only by loading spotxcolor-xespotcolor
+% instead of xespotcolor. Compile with XeLaTeX directly, or with
+% (u)pLaTeX + dvipdfmx (see the Makefile's test-ptex2pdf.tex pattern) --
+% both are legacy xespotcolor's supported combinations.
+\documentclass{article}
+\usepackage{tikz}
+\usepackage[hks,pantone,xcolor]{spotxcolor-xespotcolor}
+\begin{document}
+\color{blue}
+\bfseries\Huge \color{blue}Blue text using the color package
+
+\clearpage
+\pagecolor{white}
+
+\SetPageColorSpace{PANTONE}
+\SpotColor{PANTONEGreenPC}{1.0}
+\bfseries\Huge Pantone spot color
+
+\clearpage
+\SetPageColorSpace{HKS}
+\SpotColor{HKS68N}{1.0}
+\bfseries\Huge HKS spot color
+
+\clearpage
+\NewSpotColorSpace{SOMECOLORSPACE}
+\AddSpotColor{SOMECOLORSPACE}{SOMECOLOR}{Spot\SpotSpace Color\SpotSpace Name\SpotSpace in\SpotSpace PDF}{0.5 1.0 0.51 0}
+\SetPageColorSpace{SOMECOLORSPACE}
+\definecolor{Spots}{spotcolor}{SOMECOLOR,1.0}
+
+\SpotColor{SOMECOLOR}{1.0}
+\bfseries\Huge Self defined spot color\\
+Shading is also possible:\\
+\SpotColor{SOMECOLOR}{1.0}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.9}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.8}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.7}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.6}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.5}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.4}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.3}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.2}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.1}\rule{1cm}{1cm}\\
+\SpotColor{SOMECOLOR}{0.0}\rule{1cm}{1cm}
+
+\clearpage
+\pagecolor{Spots}
+\SpotColor{SOMECOLOR}{0.1}
+A spotcolor as background color.
+
+\clearpage
+\pagecolor{white}
+\colorbox{Spots}{xxx}
+
+% --- TikZ integration, exactly as the original xespotcolor Simple Usage
+% Example (spotcolor-test.tex) demonstrates. ---
+\clearpage
+\definecolor{MyGreen}{spotcolor}{SOMECOLOR,0.5}
+\definecolor{MyBlue}{spotcolor}{HKS68N,0.5}
+\begin{tikzpicture}
+  \filldraw[color=MyGreen] (0.1,0.1) rectangle (1.9,0.9);
+  \draw[color=MyBlue, ultra thick] (0,0) rectangle (2,1);
+\end{tikzpicture}
+\end{document}
